@@ -276,11 +276,9 @@
                 </div>
             </div>
         </footer>
-    </div> <div id="full-site-countdown-overlay" class="hidden">
-        <div class="brand-logo text-glow">TRIUMIND</div>
+    </div> <div id="full-site-countdown-overlay" class="hidden"> <div class="brand-logo text-glow">TRIUMIND</div>
         <p class="takeover-message">The Next Evolution is Approaching. Prepare Yourself.</p>
-        <div class="countdown-timer-large">
-            <div class="countdown-item-large"><div id="takeover-days" class="countdown-number-large">00</div><div class="countdown-label-large">Days</div></div>
+        <div class="countdown-timer-large"> <div class="countdown-item-large"><div id="takeover-days" class="countdown-number-large">00</div><div class="countdown-label-large">Days</div></div>
             <div class="countdown-item-large"><div id="takeover-hours" class="countdown-number-large">00</div><div class="countdown-label-large">Hours</div></div>
             <div class="countdown-item-large"><div id="takeover-minutes" class="countdown-number-large">00</div><div class="countdown-label-large">Mins</div></div>
             <div class="countdown-item-large"><div id="takeover-seconds" class="countdown-number-large">00</div><div class="countdown-label-large">Secs</div></div>
@@ -319,9 +317,8 @@
 
         // --- Section Visibility ---
         function applySectionVisibility() {
-            console.log("Applying section visibility...");
+            // console.log("Applying section visibility..."); // Uncomment for debugging
             const settings = JSON.parse(localStorage.getItem('triumindSectionVisibility')) || {};
-            // console.log("Loaded visibility settings:", settings); // Keep for debugging if needed
             const sectionMap = {
                 countdownVisible: document.getElementById('countdown'),
                 gearVisible: document.getElementById('gear'),
@@ -334,15 +331,12 @@
             for (const key in sectionMap) {
                 const sectionElement = sectionMap[key];
                 if (sectionElement) {
-                    const shouldBeVisible = settings[key] !== undefined ? settings[key] : true; // Default to true
-                    // console.log(`Section ${key}: shouldBeVisible = ${shouldBeVisible}`);
+                    const shouldBeVisible = settings[key] !== undefined ? settings[key] : true;
                     if (shouldBeVisible) {
                         sectionElement.classList.remove('hidden');
                     } else {
                         sectionElement.classList.add('hidden');
                     }
-                } else {
-                    // console.warn(`Section element for key "${key}" not found.`); // Keep for debugging if needed
                 }
             }
         }
@@ -403,152 +397,157 @@
             const now = new Date().getTime();
             const distance = targetTimestamp - now;
             
-            // console.log(`updateCountdownDisplay: distance = ${distance}`); 
-
             if (!elements.days || !elements.hours || !elements.minutes || !elements.seconds) {
                 console.error("CRITICAL: One or more countdown digit elements are NULL. Cannot update display.", elements);
                 if(mainCountdownInterval) clearInterval(mainCountdownInterval); 
                 mainCountdownInterval = null;
-                return true; 
+                return true; // Indicate finished or error
             }
             
             if (distance < 0) {
-                // console.log("Countdown finished in updateCountdownDisplay."); // Less verbose
                 if(mainCountdownInterval) clearInterval(mainCountdownInterval); 
                 mainCountdownInterval = null;
                 elements.days.textContent = '00'; elements.hours.textContent = '00';
                 elements.minutes.textContent = '00'; elements.seconds.textContent = '00';
                 
-                if (elements.timerContainer) {
-                    elements.timerContainer.classList.add('hidden');
-                    // console.log("Hiding timer container:", elements.timerContainer.id || elements.timerContainer.className);
-                }
-                if (liveMessageElement) {
-                    liveMessageElement.classList.remove('hidden');
-                    // console.log("Showing live message element:", liveMessageElement.id);
-                }
+                if (elements.timerContainer) elements.timerContainer.classList.add('hidden');
+                if (liveMessageElement) liveMessageElement.classList.remove('hidden');
 
-                if (localStorage.getItem('triumindCountdownTarget')) { 
-                    // console.log("Clearing countdown from localStorage as it finished."); // Less verbose
-                    localStorage.removeItem('triumindCountdownTarget');
-                    localStorage.removeItem('triumindCountdownMode');
-                }
-                return true; 
+                // No need to clear localStorage here, startMainSiteCountdown handles overall state
+                return true; // Indicate finished
             } else { // Countdown is active
-                if (elements.timerContainer) {
-                    elements.timerContainer.classList.remove('hidden');
-                }
-                if (liveMessageElement) {
-                    liveMessageElement.classList.add('hidden');
-                }
+                if (elements.timerContainer) elements.timerContainer.classList.remove('hidden');
+                if (liveMessageElement) liveMessageElement.classList.add('hidden');
 
                 elements.days.textContent = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
                 elements.hours.textContent = String(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
                 elements.minutes.textContent = String(Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
                 elements.seconds.textContent = String(Math.floor((distance % (1000 * 60)) / 1000)).padStart(2, '0');
             }
-            return false; 
+            return false; // Indicate still running
         }
 
         function startMainSiteCountdown() {
-            // console.log("startMainSiteCountdown called"); // Less verbose
-            if (mainCountdownInterval) { 
-                // console.log("Clearing existing interval:", mainCountdownInterval); // Less verbose
-                clearInterval(mainCountdownInterval); 
-                mainCountdownInterval = null; 
+            if (mainCountdownInterval) {
+                clearInterval(mainCountdownInterval);
+                mainCountdownInterval = null;
             }
-            
+
             const rawTargetTimestamp = localStorage.getItem('triumindCountdownTarget');
             const targetTimestamp = parseInt(rawTargetTimestamp);
             const countdownMode = localStorage.getItem('triumindCountdownMode') || 'section';
-            // console.log(`Raw Target: ${rawTargetTimestamp}, Parsed Target: ${targetTimestamp}, Mode: ${countdownMode}`); // Less verbose
 
-            if(mainSiteContentWrapper) mainSiteContentWrapper.style.opacity = '1';
-            if(siteHeader) siteHeader.style.opacity = '1';
-            document.body.classList.remove('site-takeover-active');
-            if(fullSiteCountdownOverlay) {
-                fullSiteCountdownOverlay.classList.remove('visible'); 
-                // console.log("Ensured #full-site-countdown-overlay is NOT visible initially."); // Less verbose
-            }
-            if (customCursorEl) customCursorEl.style.opacity = '1';
-
-            if (!targetTimestamp || isNaN(targetTimestamp)) {
-                // console.log("No valid countdown target found or target is NaN. Resetting display."); // Less verbose
-                const sectionDropLiveMsg = document.getElementById('section-drop-live-message');
-                if(sectionDropLiveMsg) sectionDropLiveMsg.classList.add('hidden');
-                const countdownTimerSection = document.getElementById('countdown-timer');
-                if(countdownTimerSection) countdownTimerSection.classList.remove('hidden');
-                ['days', 'hours', 'minutes', 'seconds'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '00'; });
-                return;
-            }
-            
-            // console.log(`Valid target found: ${new Date(targetTimestamp).toLocaleString()}`); // Less verbose
-
-            const sectionElements = { days: document.getElementById('days'), hours: document.getElementById('hours'), minutes: document.getElementById('minutes'), seconds: document.getElementById('seconds'), timerContainer: document.getElementById('countdown-timer') };
+            const sectionElements = {
+                days: document.getElementById('days'), hours: document.getElementById('hours'),
+                minutes: document.getElementById('minutes'), seconds: document.getElementById('seconds'),
+                timerContainer: document.getElementById('countdown-timer')
+            };
             const sectionLiveMessageEl = document.getElementById('section-drop-live-message');
-            const takeoverElements = { days: document.getElementById('takeover-days'), hours: document.getElementById('takeover-hours'), minutes: document.getElementById('takeover-minutes'), seconds: document.getElementById('takeover-seconds'), timerContainer: fullSiteCountdownOverlay.querySelector('.countdown-timer-large') };
+            
+            const takeoverElements = {
+                days: document.getElementById('takeover-days'), hours: document.getElementById('takeover-hours'),
+                minutes: document.getElementById('takeover-minutes'), seconds: document.getElementById('takeover-seconds'),
+                timerContainer: fullSiteCountdownOverlay ? fullSiteCountdownOverlay.querySelector('.countdown-timer-large') : null
+            };
             const takeoverLiveMessageEl = document.getElementById('takeover-drop-live-message');
 
-            if (countdownMode === 'takeover') {
-                // console.log("Activating TAKEOVER countdown mode."); // Less verbose
-                // console.log("Checking takeover elements:", takeoverElements); // Log elements before use
-                if(!takeoverElements.days || !takeoverElements.hours || !takeoverElements.minutes || !takeoverElements.seconds || !takeoverElements.timerContainer) {
-                    console.error("CRITICAL: One or more TAKEOVER countdown elements NOT FOUND. Aborting takeover countdown.", takeoverElements);
-                    return; 
-                }
-                document.body.classList.add('site-takeover-active');
-                if(fullSiteCountdownOverlay) {
-                    fullSiteCountdownOverlay.classList.add('visible'); 
-                    // console.log("Set #full-site-countdown-overlay to visible. Computed opacity:", getComputedStyle(fullSiteCountdownOverlay).opacity); // Less verbose
+            let activateTakeover = false;
+            if (countdownMode === 'takeover' && targetTimestamp && !isNaN(targetTimestamp)) {
+                if (takeoverElements.days && takeoverElements.hours && takeoverElements.minutes && takeoverElements.seconds && takeoverElements.timerContainer) {
+                    activateTakeover = true;
                 } else {
-                    console.error("#full-site-countdown-overlay element NOT FOUND!");
+                    console.error("CRITICAL: One or more TAKEOVER countdown elements NOT FOUND. Cannot display takeover.", takeoverElements);
                 }
-                if(mainSiteContentWrapper) mainSiteContentWrapper.style.opacity = '0';
-                if(siteHeader) siteHeader.style.opacity = '0'; 
-                if (customCursorEl) customCursorEl.style.opacity = '0';
+            }
 
-                if (!updateCountdownDisplay(targetTimestamp, takeoverElements, takeoverLiveMessageEl)) { 
-                     // console.log("Takeover countdown RUNNING. Setting interval."); // Less verbose
-                     mainCountdownInterval = setInterval(() => {
+            if (activateTakeover && fullSiteCountdownOverlay) {
+                // console.log("Attempting to activate TAKEOVER countdown mode."); // Uncomment for debugging
+                
+                // Update display first to check if it's already finished
+                const isFinishedInitially = updateCountdownDisplay(targetTimestamp, takeoverElements, takeoverLiveMessageEl);
+
+                if (!isFinishedInitially) { // Only proceed with takeover UI if timer is actually running
+                    fullSiteCountdownOverlay.classList.remove('hidden'); // KEY FIX: Make overlay displayable
+                    fullSiteCountdownOverlay.classList.add('visible');   // Make it opaque
+
+                    document.body.classList.add('site-takeover-active');
+                    if (mainSiteContentWrapper) mainSiteContentWrapper.style.opacity = '0';
+                    if (siteHeader) siteHeader.style.opacity = '0';
+                    if (customCursorEl) customCursorEl.style.opacity = '0';
+                    
+                    mainCountdownInterval = setInterval(() => {
                         if (updateCountdownDisplay(targetTimestamp, takeoverElements, takeoverLiveMessageEl)) {
-                            // console.log("Takeover countdown FINISHED during interval."); // Less verbose
-                            setTimeout(() => { 
-                                // console.log("Reverting takeover after live period."); // Less verbose
+                            // console.log("Takeover countdown FINISHED during interval."); // Uncomment for debugging
+                            setTimeout(() => {
+                                // console.log("Reverting takeover after live period."); // Uncomment for debugging
                                 document.body.classList.remove('site-takeover-active');
-                                if(fullSiteCountdownOverlay) fullSiteCountdownOverlay.classList.remove('visible');
-                                if(mainSiteContentWrapper) mainSiteContentWrapper.style.opacity = '1';
-                                if(siteHeader) siteHeader.style.opacity = '1';
+                                if (fullSiteCountdownOverlay) {
+                                    fullSiteCountdownOverlay.classList.add('hidden');
+                                    fullSiteCountdownOverlay.classList.remove('visible');
+                                }
+                                if (mainSiteContentWrapper) mainSiteContentWrapper.style.opacity = '1';
+                                if (siteHeader) siteHeader.style.opacity = '1';
                                 if (customCursorEl) customCursorEl.style.opacity = '1';
-                                startMainSiteCountdown(); 
-                            }, 5 * 60 * 1000); 
+                                // Clear relevant localStorage items as the drop is over
+                                localStorage.removeItem('triumindCountdownTarget');
+                                localStorage.removeItem('triumindCountdownMode');
+                            }, 5 * 60 * 1000); // 5 minutes after drop
                         }
                     }, 1000);
-                     // console.log("Takeover interval ID:", mainCountdownInterval); // Less verbose
-                } else { 
-                    // console.log("Takeover countdown ALREADY FINISHED on load. Reverting."); // Less verbose
-                    document.body.classList.remove('site-takeover-active');
-                    if(fullSiteCountdownOverlay) fullSiteCountdownOverlay.classList.remove('visible');
-                    if(mainSiteContentWrapper) mainSiteContentWrapper.style.opacity = '1';
-                    if(siteHeader) siteHeader.style.opacity = '1';
-                    if (customCursorEl) customCursorEl.style.opacity = '1';
-                }
-            } else { // Section mode
-                // console.log("Activating SECTION countdown mode."); // Less verbose
-                if (sectionElements.days && sectionElements.hours && sectionElements.minutes && sectionElements.seconds) {
-                     if (!updateCountdownDisplay(targetTimestamp, sectionElements, sectionLiveMessageEl)) { 
-                        // console.log("Section countdown RUNNING. Setting interval."); // Less verbose
-                        mainCountdownInterval = setInterval(() => {
-                            updateCountdownDisplay(targetTimestamp, sectionElements, sectionLiveMessageEl);
-                        }, 1000);
-                        // console.log("Section interval ID:", mainCountdownInterval); // Less verbose
-                     } else {
-                        // console.log("Section countdown ALREADY FINISHED on load."); // Less verbose
-                     }
                 } else {
-                    console.error("Section countdown elements not found!");
+                    // console.log("Takeover countdown ALREADY FINISHED. Reverting and falling back to section display if applicable."); // Uncomment for debugging
+                    activateTakeover = false; // Fall through to section display logic
+                    // Ensure localStorage is cleared if the countdown was for a past event
+                    if (new Date(targetTimestamp).getTime() < Date.now()) {
+                        localStorage.removeItem('triumindCountdownTarget');
+                        localStorage.removeItem('triumindCountdownMode');
+                    }
+                }
+            }
+            
+            // If not activating takeover (mode is 'section', or takeover conditions failed, or takeover finished instantly/was for past)
+            if (!activateTakeover) {
+                // console.log("Activating SECTION countdown mode or reverting from failed/finished takeover."); // Uncomment for debugging
+                if (fullSiteCountdownOverlay) { // Ensure overlay is hidden if not in active takeover
+                    fullSiteCountdownOverlay.classList.add('hidden');
+                    fullSiteCountdownOverlay.classList.remove('visible');
+                }
+                document.body.classList.remove('site-takeover-active'); // Ensure body class is normal
+                if (mainSiteContentWrapper) mainSiteContentWrapper.style.opacity = '1';
+                if (siteHeader) siteHeader.style.opacity = '1';
+                if (customCursorEl) customCursorEl.style.opacity = '1';
+
+                // Section countdown logic
+                if (targetTimestamp && !isNaN(targetTimestamp)) {
+                    if (sectionElements.days && sectionElements.hours && sectionElements.minutes && sectionElements.seconds) {
+                         if (!updateCountdownDisplay(targetTimestamp, sectionElements, sectionLiveMessageEl)) {
+                            mainCountdownInterval = setInterval(() => {
+                                if(updateCountdownDisplay(targetTimestamp, sectionElements, sectionLiveMessageEl)){
+                                     // Clear relevant localStorage items as the drop is over
+                                    localStorage.removeItem('triumindCountdownTarget');
+                                    localStorage.removeItem('triumindCountdownMode');
+                                }
+                            }, 1000);
+                         } else {
+                             // Section countdown already finished
+                             if (new Date(targetTimestamp).getTime() < Date.now()) {
+                                localStorage.removeItem('triumindCountdownTarget');
+                                localStorage.removeItem('triumindCountdownMode');
+                            }
+                         }
+                    } else {
+                        console.error("Section countdown elements not found!");
+                    }
+                } else { // No valid countdown target at all, reset section display to 00s
+                    // console.log("No valid countdown target found. Resetting section display."); // Uncomment for debugging
+                    const countdownTimerSection = document.getElementById('countdown-timer');
+                    if (sectionLiveMessageEl) sectionLiveMessageEl.classList.add('hidden');
+                    if (countdownTimerSection) countdownTimerSection.classList.remove('hidden');
+                    ['days', 'hours', 'minutes', 'seconds'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '00'; });
                 }
             }
         }
+
 
         // --- Modals & Product Rendering ---
         function openModal(modalId) { const modal = document.getElementById(modalId); if (modal) modal.style.display = "block"; }
@@ -611,18 +610,16 @@
 
         // --- DOMContentLoaded & Storage Event Listener ---
         document.addEventListener('DOMContentLoaded', () => {
-            // console.log("DOM fully loaded and parsed"); // Less verbose
             applySectionVisibility(); 
-            startMainSiteCountdown();
+            startMainSiteCountdown(); // Initial call
             renderProducts(); 
             const currentYearEl = document.getElementById('current-year');
             if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
 
             window.addEventListener('storage', (event) => {
-                // console.log("Storage event detected:", event.key); // Less verbose
-                if (event.key === 'triumindProducts') { /*console.log("Products changed, re-rendering.");*/ renderProducts(); }
-                if (event.key === 'triumindCountdownTarget' || event.key === 'triumindCountdownMode') { /*console.log("Countdown settings changed, restarting countdown.");*/ startMainSiteCountdown(); }
-                if (event.key === 'triumindSectionVisibility') { /*console.log("Section visibility changed, applying.");*/ applySectionVisibility(); }
+                if (event.key === 'triumindProducts') { renderProducts(); }
+                if (event.key === 'triumindCountdownTarget' || event.key === 'triumindCountdownMode') { startMainSiteCountdown(); } // Re-evaluate countdown on change
+                if (event.key === 'triumindSectionVisibility') { applySectionVisibility(); }
             });
         });
     </script>
