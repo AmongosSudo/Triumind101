@@ -376,18 +376,47 @@
         const imageUploadTrigger = document.getElementById('image-upload-trigger');
         let currentProductImages = []; 
         if (imageUploadTrigger && productImagesInput) { imageUploadTrigger.addEventListener('click', () => productImagesInput.click()); productImagesInput.addEventListener('change', handleImageUpload); }
-        function handleImageUpload(event) { /* ... same as before ... */ }
-        function renderImagePreviews() { /* ... same as before ... */ }
-        function removeImagePreview(imageId) { /* ... same as before ... */ }
-        function setPrimaryImage(imageId) { /* ... same as before ... */ }
-        function updateImageOrder(evt) { /* ... same as before ... */ }
+        // function handleImageUpload(event) { /* ... same as before ... */ } // Definition is in re-pasted section
+        // function renderImagePreviews() { /* ... same as before ... */ } // Definition is in re-pasted section
+        // function removeImagePreview(imageId) { /* ... same as before ... */ } // Definition is in re-pasted section
+        // function setPrimaryImage(imageId) { /* ... same as before ... */ } // Definition is in re-pasted section
+        // function updateImageOrder(evt) { /* ... same as before ... */ } // Definition is in re-pasted section
         function getProducts() { return JSON.parse(localStorage.getItem('triumindProducts')) || []; }
         function saveProducts(products) { try { localStorage.setItem('triumindProducts', JSON.stringify(products)); } catch (e) { console.error("Error saving products to localStorage:", e); alert("Error saving products. LocalStorage might be full."); } }
-        function renderProductsTable() { /* ... same as before ... */ }
-        function deleteProduct(productId) { /* ... same as before ... */ }
-        if (productForm) { productForm.addEventListener('submit', function(e) { /* ... same as before ... */ }); }
-        if (toggleAddProductFormButton) { toggleAddProductFormButton.addEventListener('click', () => { /* ... same as before ... */ }); }
-        if (cancelAddProductButton) { cancelAddProductButton.addEventListener('click', () => { /* ... same as before ... */ }); }
+        // function renderProductsTable() { /* ... same as before ... */ } // Definition is in re-pasted section
+        // function deleteProduct(productId) { /* ... same as before ... */ } // Definition is in re-pasted section
+        
+        // if (productForm) { productForm.addEventListener('submit', function(e) { /* ... same as before ... */ }); } // Full definition is in re-pasted section
+        
+        // MODIFIED SECTION STARTS HERE
+        if (toggleAddProductFormButton && addProductFormContainer) {
+            toggleAddProductFormButton.addEventListener('click', () => {
+                const isOpen = addProductFormContainer.classList.toggle('open');
+                if (isOpen) {
+                    toggleAddProductFormButton.innerHTML = '<i class="fas fa-minus-circle mr-2"></i> Cancel Deployment';
+                    // Optional: If you want to reset the form every time it's opened
+                    // if (productForm) productForm.reset();
+                    // currentProductImages = [];
+                    // renderImagePreviews();
+                } else {
+                    toggleAddProductFormButton.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Deploy New Unit';
+                }
+            });
+        }
+
+        if (cancelAddProductButton && addProductFormContainer && productForm && toggleAddProductFormButton) {
+            cancelAddProductButton.addEventListener('click', () => {
+                addProductFormContainer.classList.remove('open'); // Hide the form
+                if (productForm) {
+                    productForm.reset(); // Reset form fields
+                }
+                currentProductImages = []; // Clear any selected images
+                renderImagePreviews(); // Update image previews
+                // Reset the main toggle button's text
+                toggleAddProductFormButton.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Deploy New Unit';
+            });
+        }
+        // MODIFIED SECTION ENDS HERE
         
         // Section Visibility Logic
         const sectionVisibilityForm = document.getElementById('section-visibility-form');
@@ -417,16 +446,16 @@
         }
         
         document.addEventListener('DOMContentLoaded', () => {
-            if (productTableBody) { renderProductsTable(); }
+            if (productTableBody) { renderProductsTable(); } // renderProductsTable is defined in re-pasted section
             if (sectionVisibilityForm) { loadSectionVisibilitySettings(); }
         });
 
         // --- Re-pasting the full script logic from the previous version that might have been truncated by the user's view ---
         // (This section is to ensure no logic was lost if user's view was partial. The actual content is above)
         // Admin Panel Navigation
-        // function showAdminSection(targetId) { /* ... */ }
-        // adminNavLinks.forEach(link => { /* ... */ });
-        // if (initialAdminActiveLinkFromLoad && initialAdminActiveLinkFromLoad.getAttribute('data-target')) { /* ... */ }
+        // function showAdminSection(targetId) { /* ... */ } // Already defined above
+        // adminNavLinks.forEach(link => { /* ... */ }); // Already defined above
+        // if (initialAdminActiveLinkFromLoad && initialAdminActiveLinkFromLoad.getAttribute('data-target')) { /* ... */ } // Already defined above
 
         // Product Management Logic
         function handleImageUpload(event) {
@@ -444,27 +473,113 @@
             });
             if(productImagesInput) productImagesInput.value = ''; 
         }
+
         function renderImagePreviews() {
-            if(!imagePreviewGrid) return; imagePreviewGrid.innerHTML = '';
-            currentProductImages.forEach((imgData) => { /* ... same as before ... */ });
-            if (imagePreviewGrid.sortableInstance) imagePreviewGrid.sortableInstance.destroy();
-            if (currentProductImages.length > 1) { imagePreviewGrid.sortableInstance = Sortable.create(imagePreviewGrid, { animation: 150, ghostClass: 'sortable-ghost', onEnd: updateImageOrder }); }
+            if(!imagePreviewGrid) return; 
+            imagePreviewGrid.innerHTML = '';
+            currentProductImages.forEach((imgData, index) => {
+                const item = document.createElement('div');
+                item.className = 'image-preview-item';
+                item.setAttribute('data-id', imgData.id);
+                if (imgData.isPrimary) item.classList.add('is-primary');
+                item.innerHTML = `
+                    <img src="${imgData.dataUrl}" alt="${imgData.name || 'Preview'}">
+                    <button type="button" class="remove-image-btn" title="Remove image">&times;</button>
+                    ${!imgData.isPrimary ? '<button type="button" class="set-primary-btn" title="Set as primary">Primary</button>' : ''}
+                `;
+                item.querySelector('.remove-image-btn').addEventListener('click', (e) => { e.stopPropagation(); removeImagePreview(imgData.id); });
+                if (!imgData.isPrimary) {
+                    item.querySelector('.set-primary-btn').addEventListener('click', (e) => { e.stopPropagation(); setPrimaryImage(imgData.id); });
+                }
+                imagePreviewGrid.appendChild(item);
+            });
+
+            if (imagePreviewGrid.sortableInstance) {
+                imagePreviewGrid.sortableInstance.destroy();
+            }
+            if (currentProductImages.length > 1) {
+                imagePreviewGrid.sortableInstance = Sortable.create(imagePreviewGrid, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    onEnd: updateImageOrder
+                });
+            }
         }
-        function removeImagePreview(imageId) { /* ... same as before ... */ }
-        function setPrimaryImage(imageId) { /* ... same as before ... */ }
-        function updateImageOrder(evt) { /* ... same as before ... */ }
+
+        function removeImagePreview(imageId) {
+            currentProductImages = currentProductImages.filter(img => img.id !== imageId);
+            if (currentProductImages.length > 0 && !currentProductImages.some(img => img.isPrimary)) {
+                currentProductImages[0].isPrimary = true; // Ensure at least one primary if images remain
+            }
+            renderImagePreviews();
+        }
+
+        function setPrimaryImage(imageId) {
+            currentProductImages.forEach(img => img.isPrimary = (img.id === imageId));
+            renderImagePreviews();
+        }
+
+        function updateImageOrder(evt) {
+            const newOrder = Array.from(evt.to.children).map(item => item.getAttribute('data-id'));
+            const orderedImages = [];
+            newOrder.forEach(id => {
+                const img = currentProductImages.find(i => i.id === id);
+                if (img) orderedImages.push(img);
+            });
+            currentProductImages = orderedImages;
+            // If the first image is not primary after reorder, make it primary (or maintain existing primary)
+            if (currentProductImages.length > 0 && !currentProductImages.some(img => img.isPrimary)) {
+                currentProductImages[0].isPrimary = true;
+            }
+            renderImagePreviews(); // Re-render to reflect order and primary status visually
+        }
+
         function renderProductsTable() {
             if (!productTableBody) return; 
             const products = getProducts(); productTableBody.innerHTML = '';
             if (products.length === 0) { if(noProductsMessage) noProductsMessage.classList.remove('hidden'); }
             else {
                 if(noProductsMessage) noProductsMessage.classList.add('hidden');
-                products.forEach(product => { /* ... same as before ... */ });
+                products.forEach(product => {
+                    let primaryImageUrl = 'https://placehold.co/100x100/333/ccc?text=N/A';
+                    if (product.images && product.images.length > 0) {
+                        const primaryImg = product.images.find(img => img.isPrimary) || product.images[0];
+                        if (primaryImg && primaryImg.dataUrl) primaryImageUrl = primaryImg.dataUrl;
+                    }
+                    const row = productTableBody.insertRow();
+                    row.innerHTML = `
+                        <td><img src="${primaryImageUrl}" alt="${product.name}" class="product-thumbnail-small"></td>
+                        <td>${product.name}</td>
+                        <td>${product.sku || 'N/A'}</td>
+                        <td>$${parseFloat(product.price).toFixed(2)}</td>
+                        <td>${product.stock}</td>
+                        <td><span class="status-badge ${product.status === 'Draft' ? 'status-badge-draft' : ''}">${product.status}</span></td>
+                        <td class="space-x-1">
+                            <button class="btn btn-secondary btn-sm btn-edit-product" data-id="${product.id}"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-sm btn-delete-product" data-id="${product.id}"><i class="fas fa-trash"></i></button>
+                        </td>
+                    `;
+                });
             }
             if(dashboardProductCountEl) dashboardProductCountEl.textContent = products.length;
-            document.querySelectorAll('.btn-delete-product').forEach(button => { /* ... same as before ... */ });
+            document.querySelectorAll('.btn-delete-product').forEach(button => { 
+                button.addEventListener('click', function() { 
+                    if (confirm('Are you sure you want to delete this unit? This action cannot be undone.')) {
+                        deleteProduct(this.getAttribute('data-id')); 
+                    }
+                }); 
+            });
+            // Add edit functionality if needed here
         }
-        function deleteProduct(productId) { /* ... same as before ... */ }
+
+        function deleteProduct(productId) {
+            let products = getProducts();
+            products = products.filter(p => p.id !== productId);
+            saveProducts(products);
+            renderProductsTable();
+            console.log(`Product unit ${productId} decommissioned.`);
+        }
+
         if (productForm) {
              productForm.addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -481,17 +596,22 @@
                 productForm.reset(); currentProductImages = []; renderImagePreviews(); 
                 if(addProductFormContainer) addProductFormContainer.classList.remove('open');
                 if(toggleAddProductFormButton) toggleAddProductFormButton.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Deploy New Unit';
-                // Use console.log instead of alert
+                
                 console.log('Product deployed successfully to local matrix!');
                 const successMsg = document.createElement('p');
                 successMsg.textContent = 'Product deployed! Refresh main site.';
                 successMsg.className = 'text-green-400 text-sm mt-2';
-                productForm.appendChild(successMsg);
-                setTimeout(() => successMsg.remove(), 3000);
+                // Appending to form container after form is cleared, before it's hidden for better visibility
+                if (addProductFormContainer.parentNode) { // Ensure parent node exists
+                    const formParent = addProductFormContainer.parentNode;
+                    formParent.insertBefore(successMsg, addProductFormContainer.nextSibling); // Insert after form container
+                     setTimeout(() => { if (successMsg.parentNode) successMsg.remove(); }, 3000);
+                }
             });
         }
-        if (toggleAddProductFormButton) { /* ... same as before ... */ }
-        if (cancelAddProductButton) { /* ... same as before ... */ }
+        
+        // Removed the redundant placeholder if-blocks for toggleAddProductFormButton and cancelAddProductButton
+        // as their full definitions are now placed above, before the "Section Visibility Logic".
         // End of re-pasted/verified script logic
     </script>
 </body>
