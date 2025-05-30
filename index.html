@@ -17,9 +17,9 @@
             background-color: #0a0a0a;
             color: #f0f0f0;
             overflow-x: hidden;
-            cursor: none;
+            cursor: none; /* Custom cursor will handle visibility */
         }
-        body.site-takeover-active {
+        body.site-takeover-active, body.cart-open {
             overflow: hidden;
         }
 
@@ -28,17 +28,17 @@
             left: 0; top: 0; width: 20px; height: 20px;
             border: 2px solid rgba(255, 255, 255, 0.7);
             border-radius: 50%; pointer-events: none;
-            transform: translate(-50%, -50%); z-index: 9999;
+            transform: translate(-50%, -50%); z-index: 10001; /* Above cart overlay */
             transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.05s linear, opacity 0.2s ease;
             box-shadow: 0 0 15px 5px rgba(255, 255, 255, 0.5);
             opacity: 1;
         }
-        body:not(.site-takeover-active):has(a:hover, button:hover, input:hover, textarea:hover, .img-hover-effect:hover) #custom-cursor {
+        body:not(.site-takeover-active):not(.cart-open):has(a:hover, button:hover, input:hover, textarea:hover, .img-hover-effect:hover, .cart-icon-container:hover) #custom-cursor {
              width: 30px; height: 30px;
              border-color: rgba(255, 255, 255, 1);
              box-shadow: 0 0 20px 8px rgba(255, 255, 255, 0.7);
         }
-        body.site-takeover-active #custom-cursor {
+        body.site-takeover-active #custom-cursor, body.cart-open #custom-cursor {
             opacity: 0;
         }
 
@@ -52,9 +52,11 @@
             transition: top 0.3s ease, background-color 0.3s ease, opacity 0.5s ease;
             padding: 0.5rem 0;
         }
+        /* Header remains visible if cart is open as a centered modal */
         body.site-takeover-active #header {
             opacity: 0; pointer-events: none;
         }
+
 
         .contact-button {
             background-color: #1a1a1a; color: #f0f0f0; padding: 0.5rem 1.25rem;
@@ -77,10 +79,10 @@
 
         html { scroll-behavior: smooth; }
 
-        body:not(.site-takeover-active) ::-webkit-scrollbar { width: 8px; }
-        body:not(.site-takeover-active) ::-webkit-scrollbar-track { background: #1a1a1a; }
-        body:not(.site-takeover-active) ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
-        body:not(.site-takeover-active) ::-webkit-scrollbar-thumb:hover { background: #6a6a6a; }
+        body:not(.site-takeover-active):not(.cart-open) ::-webkit-scrollbar { width: 8px; }
+        body:not(.site-takeover-active):not(.cart-open) ::-webkit-scrollbar-track { background: #1a1a1a; }
+        body:not(.site-takeover-active):not(.cart-open) ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
+        body:not(.site-takeover-active):not(.cart-open) ::-webkit-scrollbar-thumb:hover { background: #6a6a6a; }
 
         .btn-hover-effect { transition: transform 0.3s ease, box-shadow 0.3s ease; cursor: none; position: relative; z-index: 1; }
         .btn-hover-effect:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4); }
@@ -105,7 +107,7 @@
         .size-table th, .size-table td { border: 1px solid #444; padding: 0.75rem; text-align: center; }
         .size-table th { background-color: #333; font-weight: bold; }
 
-        a, button, input, textarea { cursor: none; position: relative; z-index: 1; }
+        a, button, input, textarea, .cart-icon-container { cursor: none; position: relative; z-index: 1; }
         input[type="email"], textarea { caret-color: white; }
 
         @keyframes blob { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(30px, -50px) scale(1.1); } 66% { transform: translate(-20px, 20px) scale(0.9); } }
@@ -113,8 +115,15 @@
         .animation-delay-2000 { animation-delay: 2s; }
         .animation-delay-4000 { animation-delay: 4s; }
 
-        #main-site-content-wrapper { transition: opacity 0.5s ease-in-out; }
+        #main-site-content-wrapper { transition: opacity 0.4s ease, filter 0.4s ease, transform 0.4s ease; }
         body.site-takeover-active #main-site-content-wrapper { opacity: 0; pointer-events: none; }
+        body.cart-open #main-site-content-wrapper {
+            filter: blur(8px);
+            transform: scale(0.98);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
 
         #full-site-countdown-overlay {
             position: fixed; inset: 0; background-color: #0a0a0a;
@@ -131,7 +140,232 @@
         #full-site-countdown-overlay .countdown-label-large { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; color: #a0a0a0; margin-top: 0.5rem; }
         #full-site-countdown-overlay .drop-live-message { font-size: 2.5rem; font-weight: bold; color: #8B5CF6; margin-top: 2rem; }
         
-        .hidden { display: none !important; }
+        /*.hidden { display: none !important; }*/
+
+        /* Cart Styles - Centered Modal */
+        #cart-overlay { /* New overlay for background dimming */
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.6); /* Semi-transparent black */
+            z-index: 9998; /* Below cart modal, above main content */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+        #cart-overlay.open {
+            opacity: 1;
+            pointer-events: auto; /* Allow clicking overlay to close cart */
+        }
+
+        #cart-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.95); /* Start slightly scaled down */
+            width: 90%;
+            max-width: 500px; /* Adjust as needed for a box */
+            max-height: 80vh; /* Max height to prevent overflow on smaller screens */
+            background-color: #16161d; /* Slightly different dark shade for cart */
+            z-index: 9999; /* Above overlay */
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            border-radius: 0.75rem; /* Rounded corners for the box */
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #cart-modal.open {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1); /* Scale to full size */
+            pointer-events: auto;
+        }
+        .cart-header {
+            padding: 1.25rem 1.5rem; /* Adjusted padding */
+            border-bottom: 1px solid #2a2a3a; /* Darker border */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cart-header h2 {
+            font-size: 1.375rem; /* Slightly smaller title */
+            font-weight: 600;
+            color: #e0e0e0; /* Lighter text */
+        }
+        .cart-close-button {
+            background: none;
+            border: none;
+            color: #9ca3af; /* Lighter gray */
+            font-size: 1.75rem;
+            line-height: 1;
+            cursor: none;
+            transition: color 0.2s ease;
+        }
+        .cart-close-button:hover {
+            color: #f0f0f0;
+        }
+        .cart-body {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            /* Custom scrollbar for cart body */
+        }
+        .cart-body::-webkit-scrollbar { width: 6px; }
+        .cart-body::-webkit-scrollbar-track { background: #1f1f2b; border-radius: 3px;}
+        .cart-body::-webkit-scrollbar-thumb { background: #4a4a5a; border-radius: 3px;}
+        .cart-body::-webkit-scrollbar-thumb:hover { background: #6a6a7a; }
+
+        .cart-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid #2a2a3a;
+        }
+        .cart-item:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+        }
+        .cart-item-image {
+            width: 70px; /* Slightly smaller image */
+            height: 90px;
+            object-fit: cover;
+            border-radius: 0.25rem; /* Softer radius */
+            margin-right: 1.25rem;
+            border: 1px solid #333;
+        }
+        .cart-item-details {
+            flex-grow: 1;
+        }
+        .cart-item-name {
+            font-size: 0.95rem; /* Slightly smaller name */
+            font-weight: 500;
+            color: #e0e0e0;
+            margin-bottom: 0.2rem;
+        }
+        .cart-item-price {
+            font-size: 0.85rem;
+            color: #9ca3af;
+            margin-bottom: 0.4rem;
+        }
+        .cart-item-quantity {
+            display: flex;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+        .cart-item-quantity button {
+            background-color: #2a2a3a;
+            color: #e0e0e0;
+            border: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            font-weight: bold;
+            margin: 0 0.4rem;
+            transition: background-color 0.2s ease;
+        }
+        .cart-item-quantity button:hover {
+            background-color: #3b3b4b;
+        }
+        .cart-item-remove button {
+            background: none;
+            border: none;
+            color: #f87171; /* Softer red */
+            font-size: 0.85rem;
+            text-decoration: underline;
+            transition: color 0.2s ease;
+            padding: 0.25rem; /* Make it easier to click */
+        }
+        .cart-item-remove button:hover {
+            color: #ef4444;
+        }
+        .cart-footer {
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid #2a2a3a;
+            background-color: #1f1f2b; /* Slightly different dark shade */
+            border-bottom-left-radius: 0.75rem; /* Match modal radius */
+            border-bottom-right-radius: 0.75rem;
+        }
+        .cart-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.05rem; /* Slightly smaller total */
+            font-weight: 600;
+            margin-bottom: 0.875rem;
+            color: #e0e0e0;
+        }
+        .cart-checkout-button {
+            display: block;
+            width: 100%;
+            background-color: #8B5CF6;
+            color: white;
+            text-align: center;
+            padding: 0.75rem 1rem; /* Adjusted padding */
+            border-radius: 0.375rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: background-color 0.2s ease;
+        }
+        .cart-checkout-button:hover {
+            background-color: #7c3aed;
+        }
+        .empty-cart-message {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.95rem;
+            padding: 2rem 0;
+        }
+        .cart-icon-container { /* Renamed from cart-icon-container to cart-link-container for clarity */
+            position: relative;
+            cursor: none;
+            /* Styles for text link, similar to other nav links */
+            color: #d1d5db; /* text-gray-300 */
+            transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 200ms;
+        }
+        .cart-icon-container:hover {
+             color: #ffffff; /* hover:text-white */
+        }
+        .cart-item-count {
+            position: absolute;
+            top: -8px;
+            right: -10px; /* Adjust if text width changes significantly */
+            background-color: #8B5CF6;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: bold;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        .toast-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2a2a3a; /* Darker toast */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 0.375rem;
+            z-index: 10001; /* Above cart overlay */
+            opacity: 0;
+            transition: opacity 0.3s ease, bottom 0.3s ease;
+            font-size: 0.875rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .toast-notification.show {
+            opacity: 1;
+            bottom: 30px;
+        }
+
     </style>
 </head>
 <body class="antialiased pt-24">
@@ -142,16 +376,24 @@
             <nav class="container mx-auto px-6 py-2 flex justify-between items-center">
                 <a href="#hero" class="text-2xl font-bold text-white">TRIUMIND</a>
                 <div class="space-x-6 hidden md:flex items-center">
-                    <a href="#hero" class="text-gray-300 hover:text-white transition duration-200">Start</a>
+                   <!-- <a href="#hero" class="text-gray-300 hover:text-white transition duration-200">Start</a>
                     <a href="#gear" class="text-gray-300 hover:text-white transition duration-200">Gear</a>
                     <a href="#stories" class="text-gray-300 hover:text-white transition duration-200">Stories</a>
                     <a href="#reviews" class="text-gray-300 hover:text-white transition duration-200">Community</a>
                     <a href="#newsletter" class="text-gray-300 hover:text-white transition duration-200">Join</a>
-                    <a href="#contact" class="contact-button">Connect <i class="fas fa-arrow-right"></i></a>
+                    <a href="#contact" class="contact-button">Connect <i class="fas fa-arrow-right"></i></a>-->
+                    <div id="cart-icon-container" class="cart-icon-container relative">
+                        <i class="fas fa-shopping-cart text-xl"></i> <span id="cart-item-count-badge" class="cart-item-count hidden">0</span>
+                    </div>
                 </div>
-                <button id="mobile-menu-button" class="md:hidden text-gray-300 hover:text-white focus:outline-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
-                </button>
+                <div class="flex items-center md:hidden">
+                     <div id="mobile-cart-icon-container" class="cart-icon-container relative mr-4">
+                        <i class="fas fa-shopping-cart text-xl"></i> <span id="mobile-cart-item-count-badge" class="cart-item-count hidden">0</span>
+                    </div>
+                    <button id="mobile-menu-button" class="text-gray-300 hover:text-white focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                    </button>
+                </div>
             </nav>
             <div id="mobile-menu" class="hidden md:hidden rounded-b-lg shadow-lg">
                  <a href="#hero" class="block px-6 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition duration-200">Start</a>
@@ -276,9 +518,11 @@
                 </div>
             </div>
         </footer>
-    </div> <div id="full-site-countdown-overlay" class="hidden"> <div class="brand-logo text-glow">TRIUMIND</div>
+    </div> <div id="full-site-countdown-overlay" class="hidden">
+        <div class="brand-logo text-glow">TRIUMIND</div>
         <p class="takeover-message">The Next Evolution is Approaching. Prepare Yourself.</p>
-        <div class="countdown-timer-large"> <div class="countdown-item-large"><div id="takeover-days" class="countdown-number-large">00</div><div class="countdown-label-large">Days</div></div>
+        <div class="countdown-timer-large">
+            <div class="countdown-item-large"><div id="takeover-days" class="countdown-number-large">00</div><div class="countdown-label-large">Days</div></div>
             <div class="countdown-item-large"><div id="takeover-hours" class="countdown-number-large">00</div><div class="countdown-label-large">Hours</div></div>
             <div class="countdown-item-large"><div id="takeover-minutes" class="countdown-number-large">00</div><div class="countdown-label-large">Mins</div></div>
             <div class="countdown-item-large"><div id="takeover-seconds" class="countdown-number-large">00</div><div class="countdown-label-large">Secs</div></div>
@@ -303,6 +547,24 @@
       </div>
     </div>
 
+    <div id="cart-overlay"></div> <div id="cart-modal"> <div class="cart-header">
+            <h2>Your Cart</h2>
+            <button id="cart-close-button" class="cart-close-button">&times;</button>
+        </div>
+        <div id="cart-body" class="cart-body">
+            </div>
+        <div class="cart-footer">
+            <div id="cart-total-container" class="cart-total hidden">
+                <span>Total:</span>
+                <span id="cart-total-price">$0.00</span>
+            </div>
+            <button id="cart-checkout-button" class="cart-checkout-button btn-hover-effect hidden">Complete Payment</button>
+        </div>
+    </div>
+
+    <div id="toast-notification" class="toast-notification">Item added to cart!</div>
+
+
     <script>
         const spotlightHeading = document.getElementById('spotlight-heading');
         const customCursorEl = document.getElementById('custom-cursor');
@@ -315,9 +577,178 @@
         const fullSiteCountdownOverlay = document.getElementById('full-site-countdown-overlay');
         let mainCountdownInterval;
 
+        // Cart Elements
+        const cartOverlay = document.getElementById('cart-overlay'); // New overlay element
+        const cartModal = document.getElementById('cart-modal');
+        const cartIconContainer = document.getElementById('cart-icon-container');
+        const mobileCartIconContainer = document.getElementById('mobile-cart-icon-container');
+        const cartCloseButton = document.getElementById('cart-close-button');
+        const cartBody = document.getElementById('cart-body');
+        const cartTotalPriceEl = document.getElementById('cart-total-price');
+        const cartItemCountBadge = document.getElementById('cart-item-count-badge');
+        const mobileCartItemCountBadge = document.getElementById('mobile-cart-item-count-badge');
+        const cartTotalContainer = document.getElementById('cart-total-container');
+        const cartCheckoutButton = document.getElementById('cart-checkout-button');
+        const toastNotification = document.getElementById('toast-notification');
+
+        let cartItems = []; // Array to store cart items
+
+        // --- Toast Notification Function ---
+        function showToast(message) {
+            if (!toastNotification) return;
+            toastNotification.textContent = message;
+            toastNotification.classList.add('show');
+            setTimeout(() => {
+                toastNotification.classList.remove('show');
+            }, 2000); // Hide after 2 seconds
+        }
+
+        // --- Cart Logic ---
+        function openCart() {
+            if (cartModal && cartOverlay) {
+                cartOverlay.classList.add('open'); // Show overlay
+                cartModal.classList.add('open');   // Show modal
+                document.body.classList.add('cart-open');
+            }
+        }
+
+        function closeCart() {
+            if (cartModal && cartOverlay) {
+                cartOverlay.classList.remove('open'); // Hide overlay
+                cartModal.classList.remove('open');   // Hide modal
+                document.body.classList.remove('cart-open');
+            }
+        }
+
+        function loadCartFromStorage() {
+            const storedCart = localStorage.getItem('triumindCart');
+            if (storedCart) {
+                cartItems = JSON.parse(storedCart);
+            }
+            renderCart();
+        }
+
+        function saveCartToStorage() {
+            localStorage.setItem('triumindCart', JSON.stringify(cartItems));
+        }
+
+        function addToCart(productId, productName, productPrice, productImage) {
+            const existingItemIndex = cartItems.findIndex(item => item.id === productId);
+            if (existingItemIndex > -1) {
+                cartItems[existingItemIndex].quantity += 1;
+            } else {
+                cartItems.push({
+                    id: productId,
+                    name: productName,
+                    price: parseFloat(productPrice),
+                    image: productImage,
+                    quantity: 1
+                });
+            }
+            saveCartToStorage();
+            renderCart();
+            showToast(`${productName} added to cart!`);
+            // Removed openCart(); from here to prevent automatic opening
+        }
+
+        function updateCartItemQuantity(productId, newQuantity) {
+            const itemIndex = cartItems.findIndex(item => item.id === productId);
+            if (itemIndex > -1) {
+                if (newQuantity <= 0) {
+                    cartItems.splice(itemIndex, 1); // Remove item if quantity is 0 or less
+                } else {
+                    cartItems[itemIndex].quantity = newQuantity;
+                }
+                saveCartToStorage();
+                renderCart();
+            }
+        }
+
+        function removeFromCart(productId) {
+            cartItems = cartItems.filter(item => item.id !== productId);
+            saveCartToStorage();
+            renderCart();
+            showToast(`Item removed from cart.`);
+        }
+
+        function renderCart() {
+            if (!cartBody || !cartTotalPriceEl || !cartItemCountBadge || !mobileCartItemCountBadge || !cartTotalContainer || !cartCheckoutButton) {
+                console.error("One or more cart elements are missing from the DOM.");
+                return;
+            }
+
+            cartBody.innerHTML = ''; // Clear previous items
+
+            if (cartItems.length === 0) {
+                cartBody.innerHTML = '<p class="empty-cart-message">Your cart is currently empty. Go find some gear!</p>';
+                cartTotalContainer.classList.add('hidden');
+                cartCheckoutButton.classList.add('hidden');
+            } else {
+                cartTotalContainer.classList.remove('hidden');
+                cartCheckoutButton.classList.remove('hidden');
+                cartItems.forEach(item => {
+                    const itemElement = document.createElement('div');
+                    itemElement.classList.add('cart-item');
+                    itemElement.innerHTML = `
+                        <img src="${item.image || 'https://placehold.co/70x90/1a1a1a/cccccc?text=N/A'}" alt="${item.name}" class="cart-item-image" onerror="this.onerror=null;this.src='https://placehold.co/70x90/1a1a1a/cccccc?text=Error';">
+                        <div class="cart-item-details">
+                            <h3 class="cart-item-name">${item.name}</h3>
+                            <p class="cart-item-price">$${item.price.toFixed(2)}</p>
+                            <div class="cart-item-quantity">
+                                <button class="quantity-decrease btn-hover-effect" data-id="${item.id}">-</button>
+                                <span class="mx-2">${item.quantity}</span>
+                                <button class="quantity-increase btn-hover-effect" data-id="${item.id}">+</button>
+                            </div>
+                        </div>
+                        <div class="cart-item-remove">
+                            <button class="remove-item-btn btn-hover-effect" data-id="${item.id}">Remove</button>
+                        </div>
+                    `;
+                    cartBody.appendChild(itemElement);
+                });
+            }
+
+            // Calculate total price
+            const totalPrice = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+            cartTotalPriceEl.textContent = `$${totalPrice.toFixed(2)}`;
+
+            // Update cart item count badge
+            const totalQuantity = cartItems.reduce((total, item) => total + item.quantity, 0);
+            if (totalQuantity > 0) {
+                cartItemCountBadge.textContent = totalQuantity;
+                cartItemCountBadge.classList.remove('hidden');
+                mobileCartItemCountBadge.textContent = totalQuantity;
+                mobileCartItemCountBadge.classList.remove('hidden');
+            } else {
+                cartItemCountBadge.classList.add('hidden');
+                mobileCartItemCountBadge.classList.add('hidden');
+            }
+
+            // Add event listeners for new cart item buttons
+            document.querySelectorAll('.quantity-decrease').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.target.dataset.id;
+                    const item = cartItems.find(i => i.id === productId);
+                    if (item) updateCartItemQuantity(productId, item.quantity - 1);
+                });
+            });
+            document.querySelectorAll('.quantity-increase').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.target.dataset.id;
+                    const item = cartItems.find(i => i.id === productId);
+                    if (item) updateCartItemQuantity(productId, item.quantity + 1);
+                });
+            });
+            document.querySelectorAll('.remove-item-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    removeFromCart(e.target.dataset.id);
+                });
+            });
+        }
+
+
         // --- Section Visibility ---
         function applySectionVisibility() {
-            // console.log("Applying section visibility..."); // Uncomment for debugging
             const settings = JSON.parse(localStorage.getItem('triumindSectionVisibility')) || {};
             const sectionMap = {
                 countdownVisible: document.getElementById('countdown'),
@@ -346,7 +777,9 @@
         
         if (customCursorEl) {
             document.addEventListener('mousemove', (e) => {
-                 if (document.body.classList.contains('site-takeover-active')) { customCursorEl.style.opacity = '0'; return; }
+                 if (document.body.classList.contains('site-takeover-active') || document.body.classList.contains('cart-open')) {
+                     customCursorEl.style.opacity = '0'; return;
+                 }
                  customCursorEl.style.opacity = '1';
                  requestAnimationFrame(() => { customCursorEl.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%, -50%)`; });
             });
@@ -412,8 +845,6 @@
                 
                 if (elements.timerContainer) elements.timerContainer.classList.add('hidden');
                 if (liveMessageElement) liveMessageElement.classList.remove('hidden');
-
-                // No need to clear localStorage here, startMainSiteCountdown handles overall state
                 return true; // Indicate finished
             } else { // Countdown is active
                 if (elements.timerContainer) elements.timerContainer.classList.remove('hidden');
@@ -461,15 +892,10 @@
             }
 
             if (activateTakeover && fullSiteCountdownOverlay) {
-                // console.log("Attempting to activate TAKEOVER countdown mode."); // Uncomment for debugging
-                
-                // Update display first to check if it's already finished
                 const isFinishedInitially = updateCountdownDisplay(targetTimestamp, takeoverElements, takeoverLiveMessageEl);
-
-                if (!isFinishedInitially) { // Only proceed with takeover UI if timer is actually running
-                    fullSiteCountdownOverlay.classList.remove('hidden'); // KEY FIX: Make overlay displayable
-                    fullSiteCountdownOverlay.classList.add('visible');   // Make it opaque
-
+                if (!isFinishedInitially) { 
+                    fullSiteCountdownOverlay.classList.remove('hidden'); 
+                    fullSiteCountdownOverlay.classList.add('visible');   
                     document.body.classList.add('site-takeover-active');
                     if (mainSiteContentWrapper) mainSiteContentWrapper.style.opacity = '0';
                     if (siteHeader) siteHeader.style.opacity = '0';
@@ -477,9 +903,7 @@
                     
                     mainCountdownInterval = setInterval(() => {
                         if (updateCountdownDisplay(targetTimestamp, takeoverElements, takeoverLiveMessageEl)) {
-                            // console.log("Takeover countdown FINISHED during interval."); // Uncomment for debugging
                             setTimeout(() => {
-                                // console.log("Reverting takeover after live period."); // Uncomment for debugging
                                 document.body.classList.remove('site-takeover-active');
                                 if (fullSiteCountdownOverlay) {
                                     fullSiteCountdownOverlay.classList.add('hidden');
@@ -488,16 +912,13 @@
                                 if (mainSiteContentWrapper) mainSiteContentWrapper.style.opacity = '1';
                                 if (siteHeader) siteHeader.style.opacity = '1';
                                 if (customCursorEl) customCursorEl.style.opacity = '1';
-                                // Clear relevant localStorage items as the drop is over
                                 localStorage.removeItem('triumindCountdownTarget');
                                 localStorage.removeItem('triumindCountdownMode');
-                            }, 5 * 60 * 1000); // 5 minutes after drop
+                            }, 5 * 60 * 1000); 
                         }
                     }, 1000);
                 } else {
-                    // console.log("Takeover countdown ALREADY FINISHED. Reverting and falling back to section display if applicable."); // Uncomment for debugging
-                    activateTakeover = false; // Fall through to section display logic
-                    // Ensure localStorage is cleared if the countdown was for a past event
+                    activateTakeover = false; 
                     if (new Date(targetTimestamp).getTime() < Date.now()) {
                         localStorage.removeItem('triumindCountdownTarget');
                         localStorage.removeItem('triumindCountdownMode');
@@ -505,31 +926,26 @@
                 }
             }
             
-            // If not activating takeover (mode is 'section', or takeover conditions failed, or takeover finished instantly/was for past)
             if (!activateTakeover) {
-                // console.log("Activating SECTION countdown mode or reverting from failed/finished takeover."); // Uncomment for debugging
-                if (fullSiteCountdownOverlay) { // Ensure overlay is hidden if not in active takeover
+                if (fullSiteCountdownOverlay) { 
                     fullSiteCountdownOverlay.classList.add('hidden');
                     fullSiteCountdownOverlay.classList.remove('visible');
                 }
-                document.body.classList.remove('site-takeover-active'); // Ensure body class is normal
+                document.body.classList.remove('site-takeover-active'); 
                 if (mainSiteContentWrapper) mainSiteContentWrapper.style.opacity = '1';
                 if (siteHeader) siteHeader.style.opacity = '1';
                 if (customCursorEl) customCursorEl.style.opacity = '1';
 
-                // Section countdown logic
                 if (targetTimestamp && !isNaN(targetTimestamp)) {
                     if (sectionElements.days && sectionElements.hours && sectionElements.minutes && sectionElements.seconds) {
                          if (!updateCountdownDisplay(targetTimestamp, sectionElements, sectionLiveMessageEl)) {
                             mainCountdownInterval = setInterval(() => {
                                 if(updateCountdownDisplay(targetTimestamp, sectionElements, sectionLiveMessageEl)){
-                                     // Clear relevant localStorage items as the drop is over
                                     localStorage.removeItem('triumindCountdownTarget');
                                     localStorage.removeItem('triumindCountdownMode');
                                 }
                             }, 1000);
                          } else {
-                             // Section countdown already finished
                              if (new Date(targetTimestamp).getTime() < Date.now()) {
                                 localStorage.removeItem('triumindCountdownTarget');
                                 localStorage.removeItem('triumindCountdownMode');
@@ -538,8 +954,7 @@
                     } else {
                         console.error("Section countdown elements not found!");
                     }
-                } else { // No valid countdown target at all, reset section display to 00s
-                    // console.log("No valid countdown target found. Resetting section display."); // Uncomment for debugging
+                } else { 
                     const countdownTimerSection = document.getElementById('countdown-timer');
                     if (sectionLiveMessageEl) sectionLiveMessageEl.classList.add('hidden');
                     if (countdownTimerSection) countdownTimerSection.classList.remove('hidden');
@@ -590,7 +1005,13 @@
                                 <p class="text-gray-400 mb-4 flex-grow">${product.description || 'No description available.'}</p>
                                 <div class="flex justify-between items-center mt-4">
                                     <span class="text-lg font-bold text-white">$${parseFloat(product.price || 0).toFixed(2)}</span>
-                                    <button class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium btn-hover-effect">Add to Cart</button>
+                                    <button class="add-to-cart-btn bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium btn-hover-effect"
+                                            data-product-id="${product.id}"
+                                            data-product-name="${product.name || 'Unnamed Product'}"
+                                            data-product-price="${parseFloat(product.price || 0).toFixed(2)}"
+                                            data-product-image="${imageUrl}">
+                                        Add to Cart
+                                    </button>
                                 </div>
                                  <button onclick="openModal('sizeGuideModal')" class="text-sm text-gray-400 hover:text-white mt-3 text-left self-start">Size Guide</button>
                             </div>
@@ -598,6 +1019,15 @@
                     `;
                     productGrid.innerHTML += productCardHTML;
                 });
+
+                // Add event listeners to NEWLY created "Add to Cart" buttons
+                document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const { productId, productName, productPrice, productImage } = e.target.dataset;
+                        addToCart(productId, productName, productPrice, productImage);
+                    });
+                });
+
                 const newFadeInElements = productGrid.querySelectorAll('.fade-in');
                  if (newFadeInElements.length > 0) {
                     const fadeInObserver = new IntersectionObserver((entries) => {
@@ -611,15 +1041,51 @@
         // --- DOMContentLoaded & Storage Event Listener ---
         document.addEventListener('DOMContentLoaded', () => {
             applySectionVisibility(); 
-            startMainSiteCountdown(); // Initial call
+            startMainSiteCountdown(); 
             renderProducts(); 
+            loadCartFromStorage(); // Load cart from localStorage
+
             const currentYearEl = document.getElementById('current-year');
             if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
 
+            // Cart Event Listeners
+            if (cartIconContainer) cartIconContainer.addEventListener('click', openCart);
+            if (mobileCartIconContainer) mobileCartIconContainer.addEventListener('click', openCart);
+            if (cartCloseButton) cartCloseButton.addEventListener('click', closeCart);
+            if (cartOverlay) cartOverlay.addEventListener('click', closeCart); // Close cart if overlay is clicked
+
+            if (cartCheckoutButton) {
+                cartCheckoutButton.addEventListener('click', () => {
+                    if (cartItems.length > 0) {
+                        showToast('Proceeding to checkout (simulation)...');
+                        // In a real scenario, you'd redirect to a checkout page or integrate a payment gateway.
+                        // For now, let's clear the cart as a simulation of successful checkout.
+                        setTimeout(() => {
+                            cartItems = [];
+                            saveCartToStorage();
+                            renderCart();
+                            closeCart();
+                            showToast('Order placed (simulation)! Thank you.');
+                        }, 1500);
+                    } else {
+                        showToast('Your cart is empty.');
+                    }
+                });
+            }
+
+
             window.addEventListener('storage', (event) => {
                 if (event.key === 'triumindProducts') { renderProducts(); }
-                if (event.key === 'triumindCountdownTarget' || event.key === 'triumindCountdownMode') { startMainSiteCountdown(); } // Re-evaluate countdown on change
+                if (event.key === 'triumindCountdownTarget' || event.key === 'triumindCountdownMode') { startMainSiteCountdown(); } 
                 if (event.key === 'triumindSectionVisibility') { applySectionVisibility(); }
+                if (event.key === 'triumindCart') { loadCartFromStorage(); } // Reload cart if changed in another tab
+            });
+
+            // Close cart with Escape key
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && document.body.classList.contains('cart-open')) {
+                    closeCart();
+                }
             });
         });
     </script>
