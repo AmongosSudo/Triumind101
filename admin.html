@@ -81,6 +81,8 @@
         .btn-danger:hover { background-color: #dc2626; }
         .btn-success { background-color: #22c55e; color: white; }
         .btn-success:hover { background-color: #16a34a; }
+        .btn-filter { background-color: var(--admin-bg-tertiary); color: var(--admin-text-secondary); border: 1px solid var(--admin-border-color); padding: 0.5rem 1rem; font-size: 0.875rem; }
+        .btn-filter:hover, .btn-filter.active { background-color: var(--admin-accent-primary); color: var(--admin-text-primary); border-color: var(--admin-accent-primary); box-shadow: 0 0 8px var(--admin-shadow-color); }
 
 
         .form-input, .form-select, .form-textarea { background-color: var(--admin-bg-tertiary); border: 1px solid var(--admin-border-color); color: var(--admin-text-primary); padding: 0.6rem 0.85rem; border-radius: 0.25rem; width: 100%; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
@@ -183,8 +185,38 @@
         .order-items-table th, .order-items-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--admin-border-color); font-size: 0.9rem; }
         .order-items-table th { color: var(--admin-text-primary); }
         .order-items-table img { width: 40px; height: auto; border-radius: 0.25rem; margin-right: 0.5rem; vertical-align: middle;}
-        #drop-product-selection-container { max-height: 200px; overflow-y: auto; border: 1px solid var(--admin-border-color); padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem;}
+        #newsletter-emails-list { list-style: none; padding: 0; }
+        #newsletter-emails-list li { padding: 0.5rem 0; border-bottom: 1px solid var(--admin-border-color); color: var(--admin-text-secondary); }
+        #newsletter-emails-list li:last-child { border-bottom: none; }
 
+        /* Styles for Story Management Section */
+        .story-slot {
+            border: 1px solid var(--admin-border-color);
+            border-radius: 0.375rem;
+            padding: 1rem;
+            background-color: rgba(255,255,255,0.03);
+        }
+        .story-image-preview-container {
+            width: 100%;
+            height: 200px; /* Adjust as needed */
+            background-color: var(--admin-bg-tertiary);
+            border-radius: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.75rem;
+            border: 1px dashed var(--admin-border-color);
+            overflow: hidden; /* To contain the image */
+        }
+        .story-image-preview {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; /* Changed to contain to see whole image */
+            display: block;
+        }
+        .story-image-input {
+            display: none; /* Hidden, triggered by label/button */
+        }
     </style>
 </head>
 <body>
@@ -195,6 +227,8 @@
             <a href="#products" class="nav-link" data-target="products-section"><i class="fas fa-cubes-stacked"></i> Products</a>
             <a href="#orders" class="nav-link" data-target="orders-section"><i class="fas fa-file-invoice-dollar"></i> Orders</a>
             <a href="#drops" class="nav-link" data-target="drops-section"><i class="fas fa-satellite-dish"></i> Drops & Countdown</a>
+            <a href="#stories-admin" class="nav-link" data-target="stories-admin-section"><i class="fas fa-book-open"></i> Stories</a>
+            <a href="#newsletter-admin" class="nav-link" data-target="newsletter-admin-section"><i class="fas fa-envelope-open-text"></i> Newsletter</a>
             <a href="#sections" class="nav-link" data-target="sections-section"><i class="fas fa-eye"></i> Customize Sections</a>
             <a href="#settings" class="nav-link" data-target="settings-section"><i class="fas fa-cogs"></i> Site Settings</a>
         </nav>
@@ -290,7 +324,14 @@
             </section>
 
             <section id="orders-section" class="admin-section hidden">
-                <h2 class="section-title text-glow">Order Transmissions</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="section-title text-glow mb-0">Order Transmissions</h2>
+                    <div id="order-filter-buttons" class="space-x-2">
+                        <button class="btn btn-filter active" data-status="All">All</button>
+                        <button class="btn btn-filter" data-status="Processing">Processing</button>
+                        <button class="btn btn-filter" data-status="Completed">Completed</button>
+                    </div>
+                </div>
                 <div class="card overflow-x-auto">
                      <table class="w-full table">
                         <thead>
@@ -318,16 +359,33 @@
                         <div><label for="drop-date" class="form-label">Target Date (UTC)</label><input type="date" id="drop-date" name="drop-date" class="form-input"></div>
                         <div><label for="drop-time" class="form-label">Target Time (UTC)</label><input type="time" id="drop-time" name="drop-time" class="form-input"></div>
                         
-                        <div>
-                            <label class="form-label">Select Products for this Drop (Active products shown):</label>
-                            <div id="drop-product-selection-container">
-                                <p class="text-sm text-[var(--admin-text-secondary)]">Loading products...</p>
-                            </div>
-                        </div>
-
                         <div><button type="submit" class="btn btn-primary w-full"><i class="fas fa-satellite-dish mr-2"></i>Initiate Synchronization</button></div>
                     </form>
                     <div class="mt-8 pt-6 border-t border-[var(--admin-border-color)]"><h4 class="text-lg font-medium mb-2 text-gray-400">Current Event Horizon:</h4><p id="current-countdown-display" class="text-[var(--admin-accent-primary)] text-xl font-semibold">T-Minus: Not Set (Mode: Section)</p></div>
+                </div>
+            </section>
+
+            <section id="stories-admin-section" class="admin-section hidden">
+                <h2 class="section-title text-glow">Manage Stories</h2>
+                <div class="card">
+                    <p class="text-sm text-[var(--admin-text-secondary)] mb-6">Upload images for the four story slots displayed on the main page. If an image is removed, the corresponding story card will not be shown.</p>
+                    <div id="story-slots-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        </div>
+                    <div class="mt-6 text-center">
+                        <button id="save-stories-changes" class="btn btn-primary"><i class="fas fa-save mr-2"></i>Save Story Changes</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="newsletter-admin-section" class="admin-section hidden">
+                <h2 class="section-title text-glow">Newsletter Subscriptions</h2>
+                <div class="card">
+                    <h3 class="text-xl font-medium mb-4 text-[var(--admin-accent-primary)]">Collected Emails</h3>
+                    <div id="newsletter-emails-container" class="max-h-96 overflow-y-auto">
+                        <ul id="newsletter-emails-list">
+                            </ul>
+                        <p id="no-newsletter-emails" class="text-center text-[var(--admin-text-secondary)] hidden">No emails subscribed to the newsletter yet.</p>
+                    </div>
                 </div>
             </section>
             
@@ -421,8 +479,11 @@
             const sectionToShow = document.getElementById(targetId);
             if (sectionToShow) {
                 sectionToShow.classList.remove('hidden');
-                if (targetId === 'drops-section') {
-                    renderDropProductSelector();
+                if (targetId === 'newsletter-admin-section') { 
+                    loadNewsletterEmails();
+                }
+                if (targetId === 'stories-admin-section') { // Load stories when section is shown
+                    initializeStorySlots();
                 }
             }
             const activeLink = document.querySelector(`.nav-link[data-target="${targetId}"]`);
@@ -483,43 +544,8 @@
         }
 
 
-        // Countdown Logic & Product Drop Association
+        // Countdown Logic
         const adminDropForm = document.getElementById('adminDropForm');
-        const dropProductSelectionContainer = document.getElementById('drop-product-selection-container');
-
-        function renderDropProductSelector() {
-            if (!dropProductSelectionContainer) return;
-            const products = getProducts(); 
-            dropProductSelectionContainer.innerHTML = ''; 
-
-            if (products.length === 0) {
-                dropProductSelectionContainer.innerHTML = '<p class="text-sm text-[var(--admin-text-secondary)]">No products available to select for drop.</p>';
-                return;
-            }
-
-            const savedCountdownSettings = JSON.parse(localStorage.getItem('triumindCountdownSettings')) || {};
-            const savedDropProductIds = savedCountdownSettings.productIds || [];
-
-            products.forEach(product => {
-                if (product.status !== 'Active') return; 
-
-                const checkboxId = `drop-product-${product.id}`;
-                const isChecked = savedDropProductIds.includes(product.id);
-                const label = document.createElement('label');
-                label.htmlFor = checkboxId;
-                label.className = 'form-checkbox-label';
-                
-                let productNameDisplay = product.name;
-                // Removed isNewDropItem visual tag from here as the flag itself is removed
-                label.innerHTML = `
-                    <input type="checkbox" id="${checkboxId}" name="dropProducts" value="${product.id}" class="form-checkbox-input" ${isChecked ? 'checked' : ''}>
-                    <span>${productNameDisplay} (ID: ${product.id.substring(0,6)}...)</span>
-                `;
-                dropProductSelectionContainer.appendChild(label);
-            });
-        }
-
-
         if (adminDropForm) {
             const adminDropDateInput = document.getElementById('drop-date');
             const adminDropTimeInput = document.getElementById('drop-time');
@@ -566,13 +592,6 @@
                 }
                 const selectedMode = checkedRadio.value;
 
-                const selectedDropProductIds = [];
-                if (dropProductSelectionContainer) { 
-                    const productCheckboxes = dropProductSelectionContainer.querySelectorAll('input[name="dropProducts"]:checked');
-                    productCheckboxes.forEach(checkbox => selectedDropProductIds.push(checkbox.value));
-                }
-
-
                 if (dateVal && timeVal) {
                     const targetDateTime = new Date(`${dateVal}T${timeVal}`);
                     if (isNaN(targetDateTime.getTime())) {
@@ -588,14 +607,14 @@
                     const newCountdownSettings = {
                         target: targetDateTime.getTime().toString(),
                         mode: selectedMode,
-                        productIds: selectedDropProductIds 
+                        productIds: [] 
                     };
                     localStorage.setItem('triumindCountdownSettings', JSON.stringify(newCountdownSettings));
                     
                     if(adminCurrentCountdownDisplay) adminCurrentCountdownDisplay.textContent = `T-Minus: ${targetDateTime.toLocaleString()} (Mode: ${selectedMode.charAt(0).toUpperCase() + selectedMode.slice(1)})`;
                     
                     const successMsg = document.createElement('p');
-                    successMsg.textContent = 'Countdown and Drop Products Synchronized! Refresh main site.';
+                    successMsg.textContent = 'Countdown Synchronized! Refresh main site.';
                     successMsg.className = 'text-green-400 text-sm mt-2';
                     adminDropForm.appendChild(successMsg);
                     setTimeout(() => successMsg.remove(), 3000);
@@ -618,8 +637,7 @@
         const productFormTitle = document.getElementById('product-form-title');
         const productFormSubmitBtn = document.getElementById('product-form-submit-btn');
         const editingProductIdInput = document.getElementById('editing-product-id');
-        // const productIsNewDropCheckbox = document.getElementById('product-is-new-drop'); // REMOVED
-
+        
         const productTableBody = document.getElementById('product-table-body');
         const toggleAddProductFormButton = document.getElementById('toggle-add-product-form');
         const addProductFormContainer = document.getElementById('add-product-form-container');
@@ -665,7 +683,6 @@
             if (toggleAddProductFormButton) toggleAddProductFormButton.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Deploy New Unit';
             if (productSizesInput) productSizesInput.value = ''; 
             if (productColorsInput) productColorsInput.value = ''; 
-            // No need to reset productIsNewDropCheckbox as it's removed
         }
 
         if (toggleAddProductFormButton && addProductFormContainer) {
@@ -811,8 +828,7 @@
             } else if (productColorsInput) {
                 productColorsInput.value = '';
             }
-            // No need to populate productIsNewDropCheckbox as it's removed
-
+            
             currentProductImages = productToEdit.images ? [...productToEdit.images] : []; 
             renderImagePreviews();
 
@@ -839,7 +855,6 @@
                     }
                     const row = productTableBody.insertRow();
                     let productNameDisplay = product.name;
-                    // Removed isNewDropItem visual tag from here
                     row.innerHTML = `
                         <td><img src="${primaryImageUrl}" alt="${product.name}" class="product-thumbnail-small"></td>
                         <td>${productNameDisplay}</td>
@@ -858,9 +873,7 @@
             
             document.querySelectorAll('.btn-delete-product').forEach(button => { 
                 button.addEventListener('click', function() { 
-                    if (window.confirm('Are you sure you want to delete this unit? This action cannot be undone.')) {
                         deleteProduct(this.getAttribute('data-id')); 
-                    }
                 }); 
             });
 
@@ -915,9 +928,7 @@
 
                 const productSizesArray = sizesString.split(',').map(s => s.trim()).filter(s => s !== '');
                 const productColorsArray = colorsString.split(',').map(c => c.trim()).filter(c => c !== '');
-                
-                // isNewDropItem flag is removed from here
-                
+                                
                 const editingId = editingProductIdInput ? editingProductIdInput.value : '';
                 let products = getProducts();
                 let successMessageText = '';
@@ -932,7 +943,6 @@
                     images: [...currentProductImages],
                     sizes: productSizesArray, 
                     colors: productColorsArray
-                    // isNewDropItem property removed
                 };
 
                 if (editingId) { 
@@ -942,7 +952,6 @@
                             ...products[productIndex], 
                             ...productData 
                         };
-                        // Ensure isNewDropItem is removed if it existed on old product data
                         delete products[productIndex].isNewDropItem; 
                         successMessageText = 'Product updated successfully!';
                     } else {
@@ -990,7 +999,7 @@
         const modalOrderItemsTableBody = document.getElementById('modal-order-items-table-body');
         const markOrderDoneBtn = document.getElementById('mark-order-done-btn');
         let currentViewingOrderId = null;
-
+        let currentOrderFilter = 'All';
 
         function getOrders() {
             try {
@@ -1110,7 +1119,7 @@
                     }
                     markOrderDoneBtn.classList.add('hidden'); 
 
-                    renderOrdersTable(); 
+                    renderOrdersTable(currentOrderFilter); 
                     updateDashboardMetrics(); 
                     
                     console.log(`Order ${currentViewingOrderId} marked as Completed.`);
@@ -1120,8 +1129,7 @@
             });
         }
 
-
-        function renderOrdersTable() {
+        function renderOrdersTable(filterStatus = 'All') {
             const orderTableBody = document.getElementById('order-table-body');
             const noOrdersMsgEl = document.getElementById('no-orders-message');
             if (!orderTableBody || !noOrdersMsgEl) {
@@ -1129,16 +1137,32 @@
                 return;
             }
 
-            const orders = getOrders();
+            let orders = getOrders();
             orderTableBody.innerHTML = ''; 
+            currentOrderFilter = filterStatus; 
 
-            if (orders.length === 0) {
+            let filteredOrders = orders;
+            if (filterStatus !== 'All') {
+                filteredOrders = orders.filter(order => order.status === filterStatus);
+            }
+            
+            const filterButtons = document.querySelectorAll('#order-filter-buttons .btn-filter');
+            filterButtons.forEach(button => {
+                if (button.dataset.status === filterStatus) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+
+            if (filteredOrders.length === 0) {
+                noOrdersMsgEl.textContent = `No orders found with status: ${filterStatus}.`;
                 noOrdersMsgEl.classList.remove('hidden');
             } else {
                 noOrdersMsgEl.classList.add('hidden');
-                orders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                filteredOrders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-                orders.forEach(order => {
+                filteredOrders.forEach(order => {
                     const row = orderTableBody.insertRow();
                     const statusBadgeClass = getStatusBadgeClass(order.status);
                     row.innerHTML = `
@@ -1161,6 +1185,179 @@
                 });
             }
         }
+
+        const orderFilterButtonsContainer = document.getElementById('order-filter-buttons');
+        if (orderFilterButtonsContainer) {
+            orderFilterButtonsContainer.addEventListener('click', function(event) {
+                if (event.target.matches('.btn-filter')) {
+                    const status = event.target.dataset.status;
+                    renderOrdersTable(status);
+                }
+            });
+        }
+
+        // --- Newsletter Emails Display ---
+        function loadNewsletterEmails() {
+            const emailsListEl = document.getElementById('newsletter-emails-list');
+            const noEmailsMessageEl = document.getElementById('no-newsletter-emails');
+            if (!emailsListEl || !noEmailsMessageEl) {
+                console.error("Newsletter emails list or message element not found.");
+                return;
+            }
+
+            emailsListEl.innerHTML = ''; 
+            let newsletterSignups = [];
+            try {
+                const storedSignups = localStorage.getItem('triumindNewsletterSignups');
+                if (storedSignups) {
+                    newsletterSignups = JSON.parse(storedSignups);
+                }
+            } catch (e) {
+                console.error("Error parsing newsletter signups from localStorage:", e);
+                newsletterSignups = [];
+            }
+
+            if (newsletterSignups.length === 0) {
+                noEmailsMessageEl.classList.remove('hidden');
+                emailsListEl.classList.add('hidden'); 
+            } else {
+                noEmailsMessageEl.classList.add('hidden');
+                emailsListEl.classList.remove('hidden'); 
+                newsletterSignups.forEach(email => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = email;
+                    emailsListEl.appendChild(listItem);
+                });
+            }
+        }
+
+        // --- Stories Management ---
+        const storySlotsContainer = document.getElementById('story-slots-container');
+        const NUM_STORY_SLOTS = 4; // Matching the 4 story image slots on index.html
+        let currentStoryImages = []; // To hold temporary Base64 data before saving
+
+        function initializeStorySlots() {
+            if (!storySlotsContainer) return;
+            storySlotsContainer.innerHTML = ''; // Clear existing slots
+            currentStoryImages = getStoredStories(); // Load from localStorage
+
+            for (let i = 0; i < NUM_STORY_SLOTS; i++) {
+                const storyData = currentStoryImages[i] || { imageDataUrl: null }; // Default if no data
+
+                const slotDiv = document.createElement('div');
+                slotDiv.className = 'story-slot flex flex-col items-center';
+                
+                const title = document.createElement('h4');
+                title.className = 'text-lg font-medium mb-2 text-[var(--admin-text-secondary)]';
+                title.textContent = `Story Slot ${i + 1}`;
+                slotDiv.appendChild(title);
+
+                const previewContainer = document.createElement('div');
+                previewContainer.className = 'story-image-preview-container';
+                
+                const previewImg = document.createElement('img');
+                previewImg.className = 'story-image-preview';
+                previewImg.src = storyData.imageDataUrl || 'https://placehold.co/400x500/1a1a1a/cccccc?text=No+Image';
+                previewImg.alt = `Story ${i + 1} Preview`;
+                previewContainer.appendChild(previewImg);
+                slotDiv.appendChild(previewContainer);
+
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.className = 'story-image-input';
+                fileInput.accept = 'image/*';
+                fileInput.dataset.storyIndex = i;
+                fileInput.addEventListener('change', (event) => handleStoryImageUpload(event, i, previewImg));
+                slotDiv.appendChild(fileInput);
+
+                const uploadButton = document.createElement('button');
+                uploadButton.className = 'btn btn-secondary btn-sm mb-2 w-full';
+                uploadButton.textContent = 'Upload Image';
+                uploadButton.onclick = () => fileInput.click();
+                slotDiv.appendChild(uploadButton);
+
+                const removeButton = document.createElement('button');
+                removeButton.className = 'btn btn-danger btn-sm w-full';
+                removeButton.textContent = 'Remove Image';
+                removeButton.dataset.storyIndex = i;
+                removeButton.onclick = () => removeStoryImage(i, previewImg);
+                slotDiv.appendChild(removeButton);
+
+                storySlotsContainer.appendChild(slotDiv);
+            }
+        }
+
+        function getStoredStories() {
+            try {
+                const stories = JSON.parse(localStorage.getItem('triumindStories'));
+                if (Array.isArray(stories) && stories.length === NUM_STORY_SLOTS) {
+                    return stories;
+                }
+            } catch (e) {
+                console.error("Error parsing stories from localStorage:", e);
+            }
+            // Return default structure if not found or invalid
+            return Array(NUM_STORY_SLOTS).fill(null).map(() => ({ imageDataUrl: null }));
+        }
+
+        function saveStoriesToLocalStorage() {
+            try {
+                localStorage.setItem('triumindStories', JSON.stringify(currentStoryImages));
+                // Add a small success message
+                const storiesAdminSection = document.getElementById('stories-admin-section');
+                if (storiesAdminSection) {
+                    let msgEl = storiesAdminSection.querySelector('.save-success-msg');
+                    if (!msgEl) {
+                        msgEl = document.createElement('p');
+                        msgEl.className = 'text-green-400 text-sm mt-3 text-center save-success-msg';
+                        const saveButton = document.getElementById('save-stories-changes');
+                        saveButton.parentNode.insertBefore(msgEl, saveButton.nextSibling);
+                    }
+                    msgEl.textContent = 'Story changes saved!';
+                    setTimeout(() => { msgEl.textContent = ''; }, 3000);
+                }
+
+            } catch (e) {
+                console.error("Error saving stories to localStorage:", e);
+                 const storiesAdminSection = document.getElementById('stories-admin-section');
+                if (storiesAdminSection) {
+                     let msgEl = storiesAdminSection.querySelector('.save-error-msg');
+                    if (!msgEl) {
+                        msgEl = document.createElement('p');
+                        msgEl.className = 'text-red-400 text-sm mt-3 text-center save-error-msg';
+                         const saveButton = document.getElementById('save-stories-changes');
+                        saveButton.parentNode.insertBefore(msgEl, saveButton.nextSibling);
+                    }
+                    msgEl.textContent = 'Error saving stories. Storage might be full.';
+                    setTimeout(() => { msgEl.textContent = ''; }, 4000);
+                }
+            }
+        }
+        
+        function handleStoryImageUpload(event, index, previewImgElement) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImgElement.src = e.target.result;
+                    currentStoryImages[index] = { imageDataUrl: e.target.result };
+                    // No automatic save here, user clicks "Save Story Changes"
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeStoryImage(index, previewImgElement) {
+            previewImgElement.src = 'https://placehold.co/400x500/1a1a1a/cccccc?text=No+Image';
+            currentStoryImages[index] = { imageDataUrl: null };
+            // No automatic save here
+        }
+
+        const saveStoriesButton = document.getElementById('save-stories-changes');
+        if (saveStoriesButton) {
+            saveStoriesButton.addEventListener('click', saveStoriesToLocalStorage);
+        }
+
 
         function updateDashboardMetrics() {
             const orders = getOrders();
@@ -1192,8 +1389,14 @@
             if (sectionVisibilityForm) { loadSectionVisibilitySettings(); } 
             renderOrdersTable(); 
             updateDashboardMetrics(); 
-            if (document.querySelector('.nav-link.active[data-target="drops-section"]')) {
-                renderDropProductSelector();
+            
+            const newsletterSection = document.getElementById('newsletter-admin-section');
+            if (newsletterSection && !newsletterSection.classList.contains('hidden')) {
+                loadNewsletterEmails();
+            }
+            const storiesAdminSection = document.getElementById('stories-admin-section');
+             if (storiesAdminSection && !storiesAdminSection.classList.contains('hidden')) {
+                initializeStorySlots();
             }
         });
 
@@ -1201,22 +1404,26 @@
             if (event.key === 'triumindProducts') { 
                 renderProductsTable(); 
                 updateDashboardMetrics(); 
-                if (document.getElementById('drops-section') && !document.getElementById('drops-section').classList.contains('hidden')) {
-                    renderDropProductSelector(); 
-                }
             }
             if (event.key === 'triumindOrders') { 
-                renderOrdersTable();
+                renderOrdersTable(currentOrderFilter); 
                 updateDashboardMetrics();
             }
-             if (event.key === 'triumindSectionVisibility') { 
+            if (event.key === 'triumindSectionVisibility') { 
                 if (typeof loadSectionVisibilitySettings === 'function') {
                     loadSectionVisibilitySettings();
                 }
             }
-            if (event.key === 'triumindCountdownSettings') {
-                 if (document.getElementById('drops-section') && !document.getElementById('drops-section').classList.contains('hidden')) {
-                    renderDropProductSelector();
+            if (event.key === 'triumindNewsletterSignups') {
+                const newsletterSection = document.getElementById('newsletter-admin-section');
+                if (newsletterSection && !newsletterSection.classList.contains('hidden')) {
+                    loadNewsletterEmails();
+                }
+            }
+            if (event.key === 'triumindStories') { // If stories are changed elsewhere, update admin view
+                const storiesAdminSection = document.getElementById('stories-admin-section');
+                if (storiesAdminSection && !storiesAdminSection.classList.contains('hidden')) {
+                    initializeStorySlots();
                 }
             }
         });
