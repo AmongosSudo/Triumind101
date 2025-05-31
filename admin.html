@@ -89,6 +89,9 @@
         .form-radio-group { display: flex; gap: 1rem; margin-top: 0.5rem; }
         .form-radio-label { display: flex; align-items: center; gap: 0.5rem; color: var(--admin-text-secondary); font-size: 0.9rem; cursor: pointer; }
         .form-radio-input { accent-color: var(--admin-accent-primary); width: 1em; height: 1em; cursor: pointer; }
+        .form-checkbox-label { display: flex; align-items: center; gap: 0.5rem; color: var(--admin-text-secondary); font-size: 0.9rem; cursor: pointer; padding: 0.3rem 0; }
+        .form-checkbox-input { accent-color: var(--admin-accent-primary); width: 1em; height: 1em; cursor: pointer; }
+
 
         .nav-link { display: flex; align-items: center; padding: 0.85rem 1.5rem; color: var(--admin-text-secondary); border-radius: 0.25rem; transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; border-left: 3px solid transparent; text-decoration: none; cursor: pointer; }
         .nav-link:hover { background-color: rgba(139, 92, 246, 0.15); color: var(--admin-accent-primary); transform: translateX(5px); border-left-color: var(--admin-accent-primary); }
@@ -105,7 +108,7 @@
         .text-glow { text-shadow: 0 0 10px var(--admin-shadow-color), 0 0 20px rgba(139, 92, 246, 0.1); }
 
         #add-product-form-container { max-height: 0; overflow: hidden; transition: max-height 0.7s ease-in-out, padding 0.7s ease-in-out; padding: 0 1.5rem; }
-        #add-product-form-container.open { max-height: 2000px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        #add-product-form-container.open { max-height: 2200px; padding: 1.5rem; margin-bottom: 1.5rem; }
 
         .image-upload-container { border: 2px dashed var(--admin-border-color); padding: 1rem; border-radius: 0.25rem; text-align: center; cursor: pointer; transition: border-color 0.2s ease; }
         .image-upload-container:hover { border-color: var(--admin-accent-primary); }
@@ -146,13 +149,13 @@
         .admin-modal-overlay.open { display: flex; }
         .admin-modal-content {
             background-color: var(--admin-bg-secondary); color: var(--admin-text-primary);
-            padding: 1.5rem; /* Adjusted padding */
+            padding: 1.5rem; 
             border-radius: 0.5rem; width: 90%; max-width: 700px;
             max-height: 85vh; 
             border: 1px solid var(--admin-border-color);
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            display: flex; /* Added for flex layout */
-            flex-direction: column; /* Stack header, body, footer */
+            display: flex; 
+            flex-direction: column; 
         }
         .admin-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--admin-border-color); padding-bottom: 0.75rem; flex-shrink: 0;}
         .admin-modal-title { font-size: 1.5rem; font-weight: 600; color: var(--admin-accent-primary); }
@@ -160,15 +163,15 @@
         .admin-modal-close-btn:hover { color: var(--admin-text-primary); }
         .admin-modal-body { 
             overflow-y: auto; 
-            padding-right: 0.5rem; /* Space for scrollbar */
-            margin-bottom: 1rem; /* Space before footer */
-            flex-grow: 1; /* Allow body to take up space */
+            padding-right: 0.5rem; 
+            margin-bottom: 1rem; 
+            flex-grow: 1; 
         }
         .admin-modal-footer {
             padding-top: 1rem;
             border-top: 1px solid var(--admin-border-color);
             display: flex;
-            justify-content: flex-end; /* Align button to the right */
+            justify-content: flex-end; 
             flex-shrink: 0;
         }
         .order-detail-section { margin-bottom: 1.5rem; }
@@ -180,6 +183,7 @@
         .order-items-table th, .order-items-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--admin-border-color); font-size: 0.9rem; }
         .order-items-table th { color: var(--admin-text-primary); }
         .order-items-table img { width: 40px; height: auto; border-radius: 0.25rem; margin-right: 0.5rem; vertical-align: middle;}
+        #drop-product-selection-container { max-height: 200px; overflow-y: auto; border: 1px solid var(--admin-border-color); padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem;}
 
     </style>
 </head>
@@ -313,6 +317,14 @@
                         <div><label class="form-label">Countdown Mode</label><div class="form-radio-group"><label class="form-radio-label"><input type="radio" name="countdownMode" value="section" class="form-radio-input" checked> Section Display</label><label class="form-radio-label"><input type="radio" name="countdownMode" value="takeover" class="form-radio-input"> Full Site Takeover</label></div></div>
                         <div><label for="drop-date" class="form-label">Target Date (UTC)</label><input type="date" id="drop-date" name="drop-date" class="form-input"></div>
                         <div><label for="drop-time" class="form-label">Target Time (UTC)</label><input type="time" id="drop-time" name="drop-time" class="form-input"></div>
+                        
+                        <div>
+                            <label class="form-label">Select Products for this Drop (Active products shown):</label>
+                            <div id="drop-product-selection-container">
+                                <p class="text-sm text-[var(--admin-text-secondary)]">Loading products...</p>
+                            </div>
+                        </div>
+
                         <div><button type="submit" class="btn btn-primary w-full"><i class="fas fa-satellite-dish mr-2"></i>Initiate Synchronization</button></div>
                     </form>
                     <div class="mt-8 pt-6 border-t border-[var(--admin-border-color)]"><h4 class="text-lg font-medium mb-2 text-gray-400">Current Event Horizon:</h4><p id="current-countdown-display" class="text-[var(--admin-accent-primary)] text-xl font-semibold">T-Minus: Not Set (Mode: Section)</p></div>
@@ -407,7 +419,12 @@
         function showAdminSection(targetId) {
             adminSections.forEach(section => section.classList.add('hidden'));
             const sectionToShow = document.getElementById(targetId);
-            if (sectionToShow) sectionToShow.classList.remove('hidden');
+            if (sectionToShow) {
+                sectionToShow.classList.remove('hidden');
+                if (targetId === 'drops-section') {
+                    renderDropProductSelector();
+                }
+            }
             const activeLink = document.querySelector(`.nav-link[data-target="${targetId}"]`);
             if (activeLink && adminCurrentSectionTitle) adminCurrentSectionTitle.textContent = (activeLink.innerText || activeLink.textContent).trim();
         }
@@ -466,29 +483,63 @@
         }
 
 
-        // Countdown Logic
+        // Countdown Logic & Product Drop Association
         const adminDropForm = document.getElementById('adminDropForm');
+        const dropProductSelectionContainer = document.getElementById('drop-product-selection-container');
+
+        function renderDropProductSelector() {
+            if (!dropProductSelectionContainer) return;
+            const products = getProducts(); 
+            dropProductSelectionContainer.innerHTML = ''; 
+
+            if (products.length === 0) {
+                dropProductSelectionContainer.innerHTML = '<p class="text-sm text-[var(--admin-text-secondary)]">No products available to select for drop.</p>';
+                return;
+            }
+
+            const savedCountdownSettings = JSON.parse(localStorage.getItem('triumindCountdownSettings')) || {};
+            const savedDropProductIds = savedCountdownSettings.productIds || [];
+
+            products.forEach(product => {
+                if (product.status !== 'Active') return; 
+
+                const checkboxId = `drop-product-${product.id}`;
+                const isChecked = savedDropProductIds.includes(product.id);
+                const label = document.createElement('label');
+                label.htmlFor = checkboxId;
+                label.className = 'form-checkbox-label';
+                
+                let productNameDisplay = product.name;
+                // Removed isNewDropItem visual tag from here as the flag itself is removed
+                label.innerHTML = `
+                    <input type="checkbox" id="${checkboxId}" name="dropProducts" value="${product.id}" class="form-checkbox-input" ${isChecked ? 'checked' : ''}>
+                    <span>${productNameDisplay} (ID: ${product.id.substring(0,6)}...)</span>
+                `;
+                dropProductSelectionContainer.appendChild(label);
+            });
+        }
+
+
         if (adminDropForm) {
             const adminDropDateInput = document.getElementById('drop-date');
             const adminDropTimeInput = document.getElementById('drop-time');
             const adminCurrentCountdownDisplay = document.getElementById('current-countdown-display');
             
-            const savedTarget = localStorage.getItem('triumindCountdownTarget');
-            const savedMode = localStorage.getItem('triumindCountdownMode') || 'section';
-            if (savedTarget && adminDropDateInput && adminDropTimeInput && adminCurrentCountdownDisplay) {
-                const savedDate = new Date(parseInt(savedTarget));
+            const savedSettings = JSON.parse(localStorage.getItem('triumindCountdownSettings')) || {};
+            if (savedSettings.target && adminDropDateInput && adminDropTimeInput && adminCurrentCountdownDisplay) {
+                const savedDate = new Date(parseInt(savedSettings.target));
                 if (!isNaN(savedDate.getTime())) { 
                     adminDropDateInput.value = savedDate.toISOString().split('T')[0];
                     adminDropTimeInput.value = savedDate.toTimeString().split(' ')[0].substring(0,5);
-                    adminCurrentCountdownDisplay.textContent = `T-Minus: ${savedDate.toLocaleString()} (Mode: ${savedMode.charAt(0).toUpperCase() + savedMode.slice(1)})`;
+                    adminCurrentCountdownDisplay.textContent = `T-Minus: ${savedDate.toLocaleString()} (Mode: ${savedSettings.mode || 'section'})`;
                 } else {
                     console.error("Invalid saved date for countdown from localStorage");
-                    if(adminCurrentCountdownDisplay) adminCurrentCountdownDisplay.textContent = "T-Minus: Error Loading Saved Date (Mode: " + savedMode + ")";
+                    if(adminCurrentCountdownDisplay) adminCurrentCountdownDisplay.textContent = "T-Minus: Error Loading Saved Date (Mode: " + (savedSettings.mode || 'section') + ")";
                 }
             }
-            const modeRadio = adminDropForm.querySelector(`input[name="countdownMode"][value="${savedMode}"]`);
+            const modeRadio = adminDropForm.querySelector(`input[name="countdownMode"][value="${savedSettings.mode || 'section'}"]`);
             if (modeRadio) modeRadio.checked = true;
-
+            
             adminDropForm.addEventListener('submit', function(e) {
                 e.preventDefault(); 
                  if (!adminDropDateInput || !adminDropTimeInput) {
@@ -515,6 +566,13 @@
                 }
                 const selectedMode = checkedRadio.value;
 
+                const selectedDropProductIds = [];
+                if (dropProductSelectionContainer) { 
+                    const productCheckboxes = dropProductSelectionContainer.querySelectorAll('input[name="dropProducts"]:checked');
+                    productCheckboxes.forEach(checkbox => selectedDropProductIds.push(checkbox.value));
+                }
+
+
                 if (dateVal && timeVal) {
                     const targetDateTime = new Date(`${dateVal}T${timeVal}`);
                     if (isNaN(targetDateTime.getTime())) {
@@ -527,13 +585,17 @@
                         return;
                     }
                     
-                    localStorage.setItem('triumindCountdownTarget', targetDateTime.getTime().toString());
-                    localStorage.setItem('triumindCountdownMode', selectedMode);
+                    const newCountdownSettings = {
+                        target: targetDateTime.getTime().toString(),
+                        mode: selectedMode,
+                        productIds: selectedDropProductIds 
+                    };
+                    localStorage.setItem('triumindCountdownSettings', JSON.stringify(newCountdownSettings));
                     
                     if(adminCurrentCountdownDisplay) adminCurrentCountdownDisplay.textContent = `T-Minus: ${targetDateTime.toLocaleString()} (Mode: ${selectedMode.charAt(0).toUpperCase() + selectedMode.slice(1)})`;
                     
                     const successMsg = document.createElement('p');
-                    successMsg.textContent = 'Countdown updated! Refresh main site.';
+                    successMsg.textContent = 'Countdown and Drop Products Synchronized! Refresh main site.';
                     successMsg.className = 'text-green-400 text-sm mt-2';
                     adminDropForm.appendChild(successMsg);
                     setTimeout(() => successMsg.remove(), 3000);
@@ -556,6 +618,7 @@
         const productFormTitle = document.getElementById('product-form-title');
         const productFormSubmitBtn = document.getElementById('product-form-submit-btn');
         const editingProductIdInput = document.getElementById('editing-product-id');
+        // const productIsNewDropCheckbox = document.getElementById('product-is-new-drop'); // REMOVED
 
         const productTableBody = document.getElementById('product-table-body');
         const toggleAddProductFormButton = document.getElementById('toggle-add-product-form');
@@ -602,6 +665,7 @@
             if (toggleAddProductFormButton) toggleAddProductFormButton.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Deploy New Unit';
             if (productSizesInput) productSizesInput.value = ''; 
             if (productColorsInput) productColorsInput.value = ''; 
+            // No need to reset productIsNewDropCheckbox as it's removed
         }
 
         if (toggleAddProductFormButton && addProductFormContainer) {
@@ -747,6 +811,7 @@
             } else if (productColorsInput) {
                 productColorsInput.value = '';
             }
+            // No need to populate productIsNewDropCheckbox as it's removed
 
             currentProductImages = productToEdit.images ? [...productToEdit.images] : []; 
             renderImagePreviews();
@@ -773,9 +838,11 @@
                         if (primaryImg && primaryImg.dataUrl) primaryImageUrl = primaryImg.dataUrl;
                     }
                     const row = productTableBody.insertRow();
+                    let productNameDisplay = product.name;
+                    // Removed isNewDropItem visual tag from here
                     row.innerHTML = `
                         <td><img src="${primaryImageUrl}" alt="${product.name}" class="product-thumbnail-small"></td>
-                        <td>${product.name}</td>
+                        <td>${productNameDisplay}</td>
                         <td>${product.sku || 'N/A'}</td>
                         <td>$${parseFloat(product.price).toFixed(2)}</td>
                         <td>${product.stock}</td>
@@ -849,6 +916,8 @@
                 const productSizesArray = sizesString.split(',').map(s => s.trim()).filter(s => s !== '');
                 const productColorsArray = colorsString.split(',').map(c => c.trim()).filter(c => c !== '');
                 
+                // isNewDropItem flag is removed from here
+                
                 const editingId = editingProductIdInput ? editingProductIdInput.value : '';
                 let products = getProducts();
                 let successMessageText = '';
@@ -862,7 +931,8 @@
                     status: document.getElementById('product-status').value,
                     images: [...currentProductImages],
                     sizes: productSizesArray, 
-                    colors: productColorsArray 
+                    colors: productColorsArray
+                    // isNewDropItem property removed
                 };
 
                 if (editingId) { 
@@ -872,6 +942,8 @@
                             ...products[productIndex], 
                             ...productData 
                         };
+                        // Ensure isNewDropItem is removed if it existed on old product data
+                        delete products[productIndex].isNewDropItem; 
                         successMessageText = 'Product updated successfully!';
                     } else {
                         console.error("Error: Product to edit not found in array.");
@@ -887,7 +959,7 @@
                 }
                 
                 saveProducts(products); 
-                renderProductsTable();
+                renderProductsTable(); 
                 updateDashboardMetrics(); 
                 
                 resetProductForm(); 
@@ -952,13 +1024,13 @@
         function displayOrderDetailModal(orderId) {
             const orders = getOrders();
             const order = orders.find(o => o.id === orderId);
-            currentViewingOrderId = null; // Reset before setting
+            currentViewingOrderId = null; 
 
             if (!order) {
                 console.error("Order not found for modal display:", orderId);
                 return;
             }
-            currentViewingOrderId = orderId; // Store the ID of the order being viewed
+            currentViewingOrderId = orderId; 
 
             if (modalCustomerName) modalCustomerName.textContent = order.customerName || 'N/A';
             if (modalCustomerEmail) modalCustomerEmail.textContent = order.customerEmail || 'N/A';
@@ -995,7 +1067,6 @@
                 }
             }
             
-            // Show or hide "Mark as Done" button based on status
             if (markOrderDoneBtn) {
                 if (order.status && order.status.toLowerCase() === 'processing') {
                     markOrderDoneBtn.classList.remove('hidden');
@@ -1011,12 +1082,12 @@
         if (orderDetailModalCloseBtn && orderDetailModalOverlay) {
             orderDetailModalCloseBtn.addEventListener('click', () => {
                 orderDetailModalOverlay.classList.remove('open');
-                currentViewingOrderId = null; // Clear when modal closes
+                currentViewingOrderId = null; 
             });
              orderDetailModalOverlay.addEventListener('click', (event) => { 
                 if (event.target === orderDetailModalOverlay) {
                     orderDetailModalOverlay.classList.remove('open');
-                    currentViewingOrderId = null; // Clear when modal closes
+                    currentViewingOrderId = null; 
                 }
             });
         }
@@ -1033,23 +1104,16 @@
                     orders[orderIndex].status = "Completed";
                     saveOrders(orders);
                     
-                    // Update status in the modal
                     if (modalOrderStatus) {
                         modalOrderStatus.textContent = "Completed";
                         modalOrderStatus.className = `status-badge ${getStatusBadgeClass("Completed")}`;
                     }
-                    markOrderDoneBtn.classList.add('hidden'); // Hide button after action
+                    markOrderDoneBtn.classList.add('hidden'); 
 
-                    renderOrdersTable(); // Refresh the main orders table
-                    updateDashboardMetrics(); // Update dashboard counts and revenue
+                    renderOrdersTable(); 
+                    updateDashboardMetrics(); 
                     
-                    // Optionally, provide feedback to the admin
                     console.log(`Order ${currentViewingOrderId} marked as Completed.`);
-                    // Could add a small success message inside the modal or close it
-                    // setTimeout(() => {
-                    //    if (orderDetailModalOverlay) orderDetailModalOverlay.classList.remove('open');
-                    //    currentViewingOrderId = null;
-                    // }, 1500); // Close modal after 1.5 seconds
                 } else {
                     console.error("Could not find order to mark as done:", currentViewingOrderId);
                 }
@@ -1110,10 +1174,10 @@
             let activeOrderCount = 0;
 
             orders.forEach(order => {
-                if (order.status === 'Completed' || order.status === 'Shipped') { // Only count completed/shipped for revenue
+                if (order.status === 'Completed' || order.status === 'Shipped') { 
                     totalRevenue += parseFloat(order.totalAmount || 0);
                 }
-                if (order.status === 'Processing' || order.status === 'Shipped') { // Define active orders
+                if (order.status === 'Processing' || order.status === 'Shipped') { 
                     activeOrderCount++;
                 }
             });
@@ -1128,12 +1192,18 @@
             if (sectionVisibilityForm) { loadSectionVisibilitySettings(); } 
             renderOrdersTable(); 
             updateDashboardMetrics(); 
+            if (document.querySelector('.nav-link.active[data-target="drops-section"]')) {
+                renderDropProductSelector();
+            }
         });
 
         window.addEventListener('storage', (event) => {
             if (event.key === 'triumindProducts') { 
                 renderProductsTable(); 
                 updateDashboardMetrics(); 
+                if (document.getElementById('drops-section') && !document.getElementById('drops-section').classList.contains('hidden')) {
+                    renderDropProductSelector(); 
+                }
             }
             if (event.key === 'triumindOrders') { 
                 renderOrdersTable();
@@ -1142,6 +1212,11 @@
              if (event.key === 'triumindSectionVisibility') { 
                 if (typeof loadSectionVisibilitySettings === 'function') {
                     loadSectionVisibilitySettings();
+                }
+            }
+            if (event.key === 'triumindCountdownSettings') {
+                 if (document.getElementById('drops-section') && !document.getElementById('drops-section').classList.contains('hidden')) {
+                    renderDropProductSelector();
                 }
             }
         });
