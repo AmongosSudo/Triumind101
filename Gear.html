@@ -86,7 +86,7 @@
         .cart-item-details { flex-grow: 1; }
         .cart-item-name { font-size: 0.95rem; font-weight: 500; color: #e0e0e0; margin-bottom: 0.2rem; }
         .cart-item-price { font-size: 0.85rem; color: #9ca3af; margin-bottom: 0.4rem; }
-        .cart-item-selected-options { font-size: 0.75rem; color: #888; margin-top: 0.3rem; } /* For cart display */
+        .cart-item-selected-options { font-size: 0.75rem; color: #888; margin-top: 0.3rem; } 
         .cart-item-quantity { display: flex; align-items: center; font-size: 0.85rem; }
         .cart-item-quantity button { background-color: #2a2a3a; color: #e0e0e0; border: none; width: 22px; height: 22px; border-radius: 50%; font-weight: bold; margin: 0 0.4rem; transition: background-color 0.2s ease; }
         .cart-item-quantity button:hover { background-color: #3b3b4b; }
@@ -213,27 +213,27 @@
             flex-wrap: wrap;
             gap: 0.75rem; 
         }
-        .size-option, .color-option { /* Combined for similar base style */
+        .size-option, .color-option { 
             background-color: #374151; 
             color: #d1d5db; 
             padding: 0.5rem 1rem; 
             border-radius: 0.375rem; 
             font-size: 0.875rem; 
-            border: 2px solid transparent; /* For selection indication */
+            border: 2px solid transparent; 
             transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-            cursor: none; /* For custom cursor */
+            cursor: none; 
         }
         .size-option:hover, .color-option:hover {
             background-color: #4b5563; 
             color: #ffffff; 
         }
         .size-option.selected, .color-option.selected {
-            background-color: #8B5CF6; /* Accent color for selected */
+            background-color: #8B5CF6; 
             color: white;
-            border-color: #a78bfa; /* Lighter accent for border */
+            border-color: #a78bfa; 
         }
         .color-swatch { 
-            width: 1em; /* Relative to font size */
+            width: 1em; 
             height: 1em;
             border-radius: 50%;
             margin-right: 0.5rem;
@@ -241,9 +241,13 @@
             display: inline-block;
             vertical-align: middle;
         }
-        .color-option { /* Specific for color to potentially hold a swatch */
+        .color-option { 
             display: inline-flex;
             align-items: center;
+        }
+        #cart-customer-email-gear:focus { 
+            border-color: #a855f7; 
+            box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5); 
         }
 
     </style>
@@ -315,6 +319,11 @@
                 <span>Total:</span>
                 <span id="cart-total-price">$0.00</span>
             </div>
+            <div class="my-4"> <label for="cart-customer-email-gear" class="block text-sm font-medium text-gray-400 mb-1">Email for Order & Newsletter:</label>
+                <input type="email" id="cart-customer-email-gear" name="cart-customer-email-gear" required
+                       class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent text-white placeholder-gray-500 transition duration-200"
+                       placeholder="your.email@example.com">
+            </div>
             <button id="cart-checkout-button" class="cart-checkout-button btn-hover-effect hidden">Complete Payment</button>
         </div>
     </div>
@@ -334,6 +343,7 @@
         const cartItemCountBadge = document.getElementById('cart-item-count-badge');
         const cartTotalContainer = document.getElementById('cart-total-container');
         const cartCheckoutButton = document.getElementById('cart-checkout-button');
+        const cartCustomerEmailInputGear = document.getElementById('cart-customer-email-gear'); // Specific for Gear page
         const toastNotification = document.getElementById('toast-notification');
         let cartItems = [];
 
@@ -362,7 +372,7 @@
             toastNotification.classList.add('show');
             setTimeout(() => {
                 toastNotification.classList.remove('show');
-            }, 2000);
+            }, 3000); // Increased duration
         }
         
         // --- Generic Modal Control (Only for Cart on this page) ---
@@ -393,7 +403,12 @@
         function loadCartFromStorage() {
             const storedCart = localStorage.getItem('triumindCart');
             if (storedCart) {
-                cartItems = JSON.parse(storedCart);
+                try {
+                    cartItems = JSON.parse(storedCart);
+                } catch(e) {
+                    console.error("Error parsing cart from localStorage:", e);
+                    cartItems = [];
+                }
             }
             renderCart();
         }
@@ -402,7 +417,6 @@
             localStorage.setItem('triumindCart', JSON.stringify(cartItems));
         }
 
-        // Modified addToCart to include selected options
         function addToCart(productId, productName, productPrice, productImage, size, color) {
             const existingItemIndex = cartItems.findIndex(item => 
                 item.id === productId && item.selectedSize === size && item.selectedColor === color
@@ -417,8 +431,8 @@
                     price: parseFloat(productPrice),
                     image: productImage,
                     quantity: 1,
-                    selectedSize: size, // Store selected size
-                    selectedColor: color // Store selected color
+                    selectedSize: size, 
+                    selectedColor: color 
                 });
             }
             saveCartToStorage();
@@ -426,7 +440,7 @@
             showToast(`${productName} (${size ? 'Size: ' + size + ' ' : ''}${color ? 'Color: ' + color : ''}) added to cart!`);
         }
 
-        function updateCartItemQuantity(productId, newQuantity, size, color) { // Pass size and color for matching
+        function updateCartItemQuantity(productId, newQuantity, size, color) { 
             const itemIndex = cartItems.findIndex(item => 
                 item.id === productId && item.selectedSize === size && item.selectedColor === color
             );
@@ -441,7 +455,7 @@
             }
         }
 
-        function removeFromCart(productId, size, color) { // Pass size and color for matching
+        function removeFromCart(productId, size, color) { 
             cartItems = cartItems.filter(item => 
                 !(item.id === productId && item.selectedSize === size && item.selectedColor === color)
             );
@@ -451,7 +465,7 @@
         }
 
         function renderCart() {
-            if (!cartBody || !cartTotalPriceEl || !cartItemCountBadge || !cartTotalContainer || !cartCheckoutButton) {
+            if (!cartBody || !cartTotalPriceEl || !cartItemCountBadge || !cartTotalContainer || !cartCheckoutButton || !cartCustomerEmailInputGear) {
                 return;
             }
             cartBody.innerHTML = ''; 
@@ -459,9 +473,11 @@
                 cartBody.innerHTML = '<p class="empty-cart-message">Your cart is currently empty.</p>';
                 cartTotalContainer.classList.add('hidden');
                 cartCheckoutButton.classList.add('hidden');
+                cartCustomerEmailInputGear.closest('div').classList.add('hidden'); // Hide email input
             } else {
                 cartTotalContainer.classList.remove('hidden');
                 cartCheckoutButton.classList.remove('hidden');
+                cartCustomerEmailInputGear.closest('div').classList.remove('hidden'); // Show email input
                 cartItems.forEach(item => {
                     const itemElement = document.createElement('div');
                     itemElement.classList.add('cart-item');
@@ -523,7 +539,7 @@
         function displayProductDetails() {
             const urlParams = new URLSearchParams(window.location.search);
             const productId = urlParams.get('productId');
-            selectedSize = null; // Reset selections on page load
+            selectedSize = null; 
             selectedColor = null;
 
             if (!productId) {
@@ -575,12 +591,11 @@
                  if (productDetailMainImageElPage) productDetailMainImageElPage.src = primaryImageUrl; 
             }
 
-            // Display Sizes
             if (productSizesSectionEl && productSizesListEl) {
                 productSizesListEl.innerHTML = ''; 
                 if (product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0) {
                     product.sizes.forEach(size => {
-                        const sizeEl = document.createElement('button'); // Changed to button for better accessibility
+                        const sizeEl = document.createElement('button'); 
                         sizeEl.classList.add('size-option');
                         sizeEl.textContent = size;
                         sizeEl.dataset.size = size;
@@ -597,24 +612,21 @@
                 }
             }
 
-            // Display Colors
             if (productColorsSectionEl && productColorsListEl) {
                 productColorsListEl.innerHTML = ''; 
                 if (product.colors && Array.isArray(product.colors) && product.colors.length > 0) {
                     product.colors.forEach(colorName => {
-                        const colorEl = document.createElement('button'); // Changed to button
+                        const colorEl = document.createElement('button'); 
                         colorEl.classList.add('color-option');
                         colorEl.dataset.color = colorName;
                         
                         const colorSwatch = document.createElement('span');
                         colorSwatch.classList.add('color-swatch');
-                        // Attempt to set background color from name, very basic
-                        // For real-world use, store hex codes or use a mapping
                         let cssColor = colorName.toLowerCase().replace(/\s+/g, '');
                         if (['black', 'white', 'red', 'blue', 'green', 'yellow', 'purple', 'pink', 'orange', 'brown', 'gray', 'silver', 'gold'].includes(cssColor)) {
                              colorSwatch.style.backgroundColor = cssColor;
                         } else {
-                             colorSwatch.style.backgroundColor = '#ccc'; // Default if color name not recognized
+                             colorSwatch.style.backgroundColor = '#ccc'; 
                         }
                         colorEl.appendChild(colorSwatch);
                         colorEl.appendChild(document.createTextNode(colorName)); 
@@ -639,7 +651,6 @@
                 productDetailAddToCartBtnPage.dataset.productImage = primaryImageUrl; 
 
                 productDetailAddToCartBtnPage.onclick = () => { 
-                    // Check if sizes/colors are available and if one is selected
                     const hasSizes = product.sizes && product.sizes.length > 0;
                     const hasColors = product.colors && product.colors.length > 0;
 
@@ -657,8 +668,8 @@
                         productDetailAddToCartBtnPage.dataset.productName,
                         productDetailAddToCartBtnPage.dataset.productPrice,
                         productDetailAddToCartBtnPage.dataset.productImage,
-                        selectedSize, // Pass selected size
-                        selectedColor // Pass selected color
+                        selectedSize, 
+                        selectedColor 
                     );
                 };
             }
@@ -689,42 +700,68 @@
             if (cartCloseButton) cartCloseButton.addEventListener('click', closeCart);
             
             if (modalOverlay) {
-                modalOverlay.addEventListener('click', () => {
-                    if (cartModal && cartModal.classList.contains('open')) closeCart();
+                modalOverlay.addEventListener('click', (event) => {
+                     if (event.target === modalOverlay) { // Only close if overlay itself is clicked
+                        if (cartModal && cartModal.classList.contains('open')) closeCart();
+                    }
                 });
             }
 
             if (cartCheckoutButton) { 
                 cartCheckoutButton.addEventListener('click', () => {
-                    if (cartItems.length > 0) {
-                        showToast('Proceeding to checkout (simulation)...');
-                        const newOrder = {
-                            id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                            timestamp: new Date().toISOString(),
-                            items: [...cartItems], 
-                            totalAmount: cartItems.reduce((total, item) => total + (item.price * item.quantity), 0),
-                            customerName: "Guest User", 
-                            status: "Processing" 
-                        };
-                        try {
-                            let orders = JSON.parse(localStorage.getItem('triumindOrders')) || [];
-                            orders.push(newOrder);
-                            localStorage.setItem('triumindOrders', JSON.stringify(orders));
-                        } catch (e) {
-                            console.error("Error saving order to localStorage:", e);
-                            showToast('Error placing order. Please try again.');
-                            return; 
-                        }
-                        setTimeout(() => {
-                            cartItems = []; 
-                            saveCartToStorage(); 
-                            renderCart(); 
-                            closeCart();
-                            showToast('Order placed (simulation)! Thank you.');
-                        }, 1500);
-                    } else {
+                    if (cartItems.length === 0) {
                         showToast('Your cart is empty.');
+                        return;
                     }
+
+                    const email = cartCustomerEmailInputGear ? cartCustomerEmailInputGear.value.trim() : '';
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Simple email regex
+
+                    if (!email || !emailRegex.test(email)) {
+                        showToast('Please enter a valid email to proceed.');
+                        if (cartCustomerEmailInputGear) cartCustomerEmailInputGear.focus();
+                        return;
+                    }
+                    
+                    // Save email to newsletter list
+                    try {
+                        let newsletterSignups = JSON.parse(localStorage.getItem('triumindNewsletterSignups')) || [];
+                        if (!newsletterSignups.includes(email)) {
+                            newsletterSignups.push(email);
+                            localStorage.setItem('triumindNewsletterSignups', JSON.stringify(newsletterSignups));
+                            showToast('Email saved for newsletter!');
+                        }
+                    } catch (e) {
+                        console.error("Error saving email to newsletter list:", e);
+                    }
+
+                    showToast('Proceeding to checkout (simulation)...');
+                    const newOrder = {
+                        id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                        timestamp: new Date().toISOString(),
+                        items: [...cartItems], 
+                        totalAmount: cartItems.reduce((total, item) => total + (item.price * item.quantity), 0),
+                        customerName: "Guest User", 
+                        customerEmail: email, // Use collected email
+                        status: "Processing" 
+                    };
+                    try {
+                        let orders = JSON.parse(localStorage.getItem('triumindOrders')) || [];
+                        orders.push(newOrder);
+                        localStorage.setItem('triumindOrders', JSON.stringify(orders));
+                    } catch (e) {
+                        console.error("Error saving order to localStorage:", e);
+                        showToast('Error placing order. Please try again.');
+                        return; 
+                    }
+                    setTimeout(() => {
+                        cartItems = []; 
+                        saveCartToStorage(); 
+                        renderCart(); 
+                        if(cartCustomerEmailInputGear) cartCustomerEmailInputGear.value = ''; // Clear email field
+                        closeCart();
+                        showToast('Order placed (simulation)! Thank you.');
+                    }, 1500);
                 });
             }
 
