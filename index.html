@@ -110,7 +110,7 @@
         .img-hover-effect { transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), filter 0.4s ease; filter: grayscale(50%); cursor: none; }
         .img-hover-effect:hover { transform: scale(1.05); filter: grayscale(0%); }
 
-        #newsletter-email:focus { border-color: #a855f7; box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5); }
+        #newsletter-email:focus, #cart-customer-email:focus { border-color: #a855f7; box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5); }
 
         .countdown-item { background-color: rgba(255, 255, 255, 0.05); padding: 0.75rem 1rem; border-radius: 0.5rem; min-width: 70px; }
         .countdown-number { font-size: 2rem; font-weight: 700; line-height: 1; color: #f0f0f0; }
@@ -182,8 +182,8 @@
             left: 50%;
             transform: translate(-50%, -50%) scale(0.95); 
             width: 90%;
-            max-width: 850px; /* Increased from 500px */
-            max-height: 85vh; /* Increased from 80vh */
+            max-width: 850px; 
+            max-height: 85vh; 
             background-color: #16161d; 
             z-index: 9999; 
             box-shadow: 0 15px 40px rgba(0,0,0,0.6);
@@ -461,7 +461,7 @@
                     <p>Check back soon for the latest drops.</p>
                 </div>
                 <div class="text-center mt-16 fade-in" style="transition-delay: 0.5s;">
-                     <a href="#" class="bg-white text-black px-8 py-3 rounded-lg font-semibold uppercase tracking-wide btn-hover-effect">View All Gear (Archive)</a>
+                     <a href="AllGear.html" class="bg-white text-black px-8 py-3 rounded-lg font-semibold uppercase tracking-wide btn-hover-effect">View All Gear (Archive)</a>
                 </div>
             </div>
         </section>
@@ -470,12 +470,9 @@
              <div class="container mx-auto px-6 text-center">
                  <h2 class="text-4xl md:text-5xl font-bold text-center mb-6 fade-in">The Stories</h2>
                  <p class="text-gray-400 max-w-xl mx-auto mb-12 fade-in" style="transition-delay: 0.1s;">It's more than fabric. It's the mindset woven in. See how the Triumind collective lives it, breathes it, reps it.</p>
-                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 fade-in" style="transition-delay: 0.2s;">
-                    <img src="https://placehold.co/400x500/1f1f1f/555555?text=Story+1" alt="Style Story 1" class="rounded-lg shadow-lg img-hover-effect w-full h-auto object-cover aspect-[4/5]" onerror="this.onerror=null;this.src='https://placehold.co/400x500/1f1f1f/cccccc?text=Image+Not+Found';">
-                    <img src="https://placehold.co/400x500/2a2a2a/555555?text=Story+2" alt="Style Story 2" class="rounded-lg shadow-lg img-hover-effect w-full h-auto object-cover aspect-[4/5]" onerror="this.onerror=null;this.src='https://placehold.co/400x500/2a2a2a/cccccc?text=Image+Not+Found';">
-                    <img src="https://placehold.co/400x500/3a3a3a/555555?text=Story+3" alt="Style Story 3" class="rounded-lg shadow-lg img-hover-effect w-full h-auto object-cover aspect-[4/5]" onerror="this.onerror=null;this.src='https://placehold.co/400x500/3a3a3a/cccccc?text=Image+Not+Found';">
-                    <img src="https://placehold.co/400x500/1a1a1a/555555?text=Story+4" alt="Style Story 4" class="rounded-lg shadow-lg img-hover-effect w-full h-auto object-cover aspect-[4/5]" onerror="this.onerror=null;this.src='https://placehold.co/400x500/1a1a1a/cccccc?text=Image+Not+Found';">
-                 </div>
+                 <div id="stories-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 fade-in" style="transition-delay: 0.2s;">
+                    </div>
+                 <p id="no-stories-message" class="text-gray-400 hidden">No stories to display yet. Check back soon!</p>
                  <div class="mt-12 fade-in" style="transition-delay: 0.3s;"><a href="#contact" class="text-purple-400 hover:text-purple-300 font-semibold group text-lg">Share Your Story? <span class="inline-block transition-transform duration-300 group-hover:translate-x-1">&rarr;</span></a></div>
             </div>
         </section>
@@ -533,8 +530,7 @@
         </footer>
     </div> 
     
-    <div id="full-site-countdown-overlay" class="hidden">
-        <div class="brand-logo text-glow">TRIUMIND</div>
+    <div id="full-site-countdown-overlay" class="hidden"> <div class="brand-logo text-glow">TRIUMIND</div>
         <p class="takeover-message">The Next Evolution is Approaching. Prepare Yourself.</p>
         <div class="countdown-timer-large">
             <div class="countdown-item-large"><div id="takeover-days" class="countdown-number-large">00</div><div class="countdown-label-large">Days</div></div>
@@ -568,11 +564,17 @@
             <button id="cart-close-button" class="cart-close-button">&times;</button>
         </div>
         <div id="cart-body" class="cart-body">
-            </div>
+        </div>
         <div class="cart-footer">
             <div id="cart-total-container" class="cart-total hidden">
                 <span>Total:</span>
                 <span id="cart-total-price">$0.00</span>
+            </div>
+            <div class="my-4"> 
+                <label for="cart-customer-email" class="block text-sm font-medium text-gray-400 mb-1">Email for Order & Newsletter:</label>
+                <input type="email" id="cart-customer-email" name="cart-customer-email" required
+                       class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent text-white placeholder-gray-500 transition duration-200"
+                       placeholder="your.email@example.com">
             </div>
             <button id="cart-checkout-button" class="cart-checkout-button btn-hover-effect hidden">Complete Payment</button>
         </div>
@@ -590,11 +592,11 @@
         const mobileMenu = document.getElementById('mobile-menu');
         const siteHeader = document.getElementById('header');
         const mainSiteContentWrapper = document.getElementById('main-site-content-wrapper');
-        const fullSiteCountdownOverlay = document.getElementById('full-site-countdown-overlay');
+        const fullSiteCountdownOverlay = document.getElementById('full-site-countdown-overlay'); 
         const modalOverlay = document.getElementById('modal-overlay'); 
-        let mainCountdownInterval;
+        
+        let mainCountdownInterval; 
 
-        // --- Cart Elements ---
         const cartModal = document.getElementById('cart-modal');
         const cartIconContainer = document.getElementById('cart-icon-container');
         const mobileCartIconContainer = document.getElementById('mobile-cart-icon-container');
@@ -605,20 +607,19 @@
         const mobileCartItemCountBadge = document.getElementById('mobile-cart-item-count-badge');
         const cartTotalContainer = document.getElementById('cart-total-container');
         const cartCheckoutButton = document.getElementById('cart-checkout-button');
+        const cartCustomerEmailInput = document.getElementById('cart-customer-email'); 
         const toastNotification = document.getElementById('toast-notification');
         let cartItems = [];
 
-        // --- Toast Notification Function ---
         function showToast(message) {
             if (!toastNotification) return;
             toastNotification.textContent = message;
             toastNotification.classList.add('show');
             setTimeout(() => {
                 toastNotification.classList.remove('show');
-            }, 2000);
+            }, 3000); 
         }
         
-        // --- Generic Modal Control (for Cart and Size Guide) ---
         function openSharedModal(modalElement) {
             if (modalElement && modalOverlay) {
                 modalOverlay.classList.add('open');
@@ -672,14 +673,18 @@
             }
         }
 
-        // --- Cart Logic ---
         function openCart() { openSharedModal(cartModal); }
         function closeCart() { closeSharedModal(cartModal); }
 
         function loadCartFromStorage() {
             const storedCart = localStorage.getItem('triumindCart');
             if (storedCart) {
-                cartItems = JSON.parse(storedCart);
+                try {
+                    cartItems = JSON.parse(storedCart);
+                } catch (e) {
+                    console.error("Error parsing cart from localStorage:", e);
+                    cartItems = [];
+                }
             }
             renderCart();
         }
@@ -736,7 +741,8 @@
         }
 
         function renderCart() {
-            if (!cartBody || !cartTotalPriceEl || !cartItemCountBadge || !mobileCartItemCountBadge || !cartTotalContainer || !cartCheckoutButton) {
+            if (!cartBody || !cartTotalPriceEl || !cartItemCountBadge || !mobileCartItemCountBadge || !cartTotalContainer || !cartCheckoutButton || !cartCustomerEmailInput) {
+                console.warn("One or more cart elements are missing from the DOM.");
                 return;
             }
             cartBody.innerHTML = ''; 
@@ -744,9 +750,11 @@
                 cartBody.innerHTML = '<p class="empty-cart-message">Your cart is currently empty. Go find some gear!</p>';
                 cartTotalContainer.classList.add('hidden');
                 cartCheckoutButton.classList.add('hidden');
+                if(cartCustomerEmailInput) cartCustomerEmailInput.closest('div').classList.add('hidden'); 
             } else {
                 cartTotalContainer.classList.remove('hidden');
                 cartCheckoutButton.classList.remove('hidden');
+                if(cartCustomerEmailInput) cartCustomerEmailInput.closest('div').classList.remove('hidden'); 
                 cartItems.forEach(item => {
                     const itemElement = document.createElement('div');
                     itemElement.classList.add('cart-item');
@@ -807,7 +815,6 @@
             });
         }
 
-        // --- Section Visibility ---
         function applySectionVisibility() {
             const settings = JSON.parse(localStorage.getItem('triumindSectionVisibility')) || {};
             const sectionMap = {
@@ -832,7 +839,6 @@
             }
         }
 
-        // --- General Site Interactivity ---
         if (spotlightHeading) spotlightHeading.textContent = "Triumind";
         
         if (customCursorEl) {
@@ -886,25 +892,50 @@
             });
         }
 
-        // --- Countdown Logic (Existing) ---
-        function updateCountdownDisplay(targetTimestamp, elements, liveMessageElement) {
+        function updateCountdownDisplay(targetTimestamp, elements, liveMessageElement, timerContainerElement, mode) {
             const now = new Date().getTime();
             const distance = targetTimestamp - now;
+
             if (!elements.days || !elements.hours || !elements.minutes || !elements.seconds) {
-                if(mainCountdownInterval) clearInterval(mainCountdownInterval); 
+                if (mainCountdownInterval) clearInterval(mainCountdownInterval);
                 mainCountdownInterval = null;
-                return true; 
-            }
-            if (distance < 0) {
-                if(mainCountdownInterval) clearInterval(mainCountdownInterval); 
-                mainCountdownInterval = null;
-                elements.days.textContent = '00'; elements.hours.textContent = '00';
-                elements.minutes.textContent = '00'; elements.seconds.textContent = '00';
-                if (elements.timerContainer) elements.timerContainer.classList.add('hidden');
+                console.error("Countdown elements (days, hours, mins, secs) not found for display.");
+                if (timerContainerElement) timerContainerElement.classList.add('hidden');
                 if (liveMessageElement) liveMessageElement.classList.remove('hidden');
                 return true; 
-            } else { 
-                if (elements.timerContainer) elements.timerContainer.classList.remove('hidden');
+            }
+
+            if (distance < 0) {
+                if (mainCountdownInterval) clearInterval(mainCountdownInterval);
+                mainCountdownInterval = null;
+                elements.days.textContent = '00';
+                elements.hours.textContent = '00';
+                elements.minutes.textContent = '00';
+                elements.seconds.textContent = '00';
+                if (timerContainerElement) timerContainerElement.classList.add('hidden');
+                if (liveMessageElement) liveMessageElement.classList.remove('hidden');
+                
+                if (mode === 'takeover') {
+                    console.log("Takeover countdown finished. Updating localStorage and refreshing page in 2 seconds...");
+                    const currentSettingsString = localStorage.getItem('triumindCountdownSettings');
+                    if (currentSettingsString) {
+                        try {
+                            let currentSettings = JSON.parse(currentSettingsString);
+                            currentSettings.mode = 'section'; 
+                            localStorage.setItem('triumindCountdownSettings', JSON.stringify(currentSettings));
+                            console.log("localStorage updated to prevent takeover re-trigger.");
+                        } catch (e) {
+                            console.error("Error updating localStorage for countdown settings:", e);
+                        }
+                    }
+                    
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000); 
+                }
+                return true; 
+            } else {
+                if (timerContainerElement) timerContainerElement.classList.remove('hidden');
                 if (liveMessageElement) liveMessageElement.classList.add('hidden');
                 elements.days.textContent = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
                 elements.hours.textContent = String(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
@@ -913,10 +944,111 @@
             }
             return false; 
         }
-        function startMainSiteCountdown() { /* ... existing countdown logic ... */ }
+
+        function startMainSiteCountdown() {
+            if (mainCountdownInterval) clearInterval(mainCountdownInterval);
+            mainCountdownInterval = null; 
+
+            const countdownSettingsString = localStorage.getItem('triumindCountdownSettings');
+            const countdownSectionEl = document.getElementById('countdown'); 
+            const fullSiteOverlay = document.getElementById('full-site-countdown-overlay'); 
+
+            if (countdownSectionEl) countdownSectionEl.classList.add('hidden');
+            if (fullSiteOverlay) {
+                fullSiteOverlay.classList.remove('visible');
+                fullSiteOverlay.classList.add('hidden'); 
+            }
+            document.body.classList.remove('site-takeover-active');
+             if (mainSiteContentWrapper) mainSiteContentWrapper.style.filter = 'none';
 
 
-        // --- Product Rendering (Modified for Linking to Gear.html) ---
+            if (!countdownSettingsString) {
+                console.log("No countdown settings found in localStorage. Countdown will not be displayed.");
+                return;
+            }
+
+            let countdownSettings;
+            try {
+                countdownSettings = JSON.parse(countdownSettingsString);
+            } catch (e) {
+                console.error("Error parsing countdown settings:", e);
+                return;
+            }
+
+            const targetTimestamp = parseInt(countdownSettings.target);
+            const mode = countdownSettings.mode; 
+
+            if (isNaN(targetTimestamp)) {
+                console.error("Invalid target timestamp for countdown.");
+                return;
+            }
+
+            const sectionCountdownElements = {
+                days: document.getElementById('days'),
+                hours: document.getElementById('hours'),
+                minutes: document.getElementById('minutes'),
+                seconds: document.getElementById('seconds'),
+                timerContainer: document.getElementById('countdown-timer') 
+            };
+            const sectionLiveMessage = document.getElementById('section-drop-live-message');
+
+            const takeoverCountdownElements = {
+                days: document.getElementById('takeover-days'),
+                hours: document.getElementById('takeover-hours'),
+                minutes: document.getElementById('takeover-minutes'),
+                seconds: document.getElementById('takeover-seconds'),
+                timerContainer: document.querySelector('#full-site-countdown-overlay .countdown-timer-large')
+            };
+            const takeoverLiveMessage = document.getElementById('takeover-drop-live-message');
+
+
+            if (mode === 'takeover') {
+                if (fullSiteOverlay) {
+                     fullSiteOverlay.classList.remove('hidden'); 
+                     fullSiteOverlay.classList.add('visible');   
+                     document.body.classList.add('site-takeover-active');
+                     if (mainSiteContentWrapper) mainSiteContentWrapper.style.filter = 'blur(0px)'; 
+                    if (countdownSectionEl) countdownSectionEl.classList.add('hidden');
+
+                    const isOverTakeover = updateCountdownDisplay(targetTimestamp, takeoverCountdownElements, takeoverLiveMessage, takeoverCountdownElements.timerContainer, 'takeover');
+                    if (!isOverTakeover) {
+                        mainCountdownInterval = setInterval(() => {
+                            updateCountdownDisplay(targetTimestamp, takeoverCountdownElements, takeoverLiveMessage, takeoverCountdownElements.timerContainer, 'takeover');
+                        }, 1000);
+                    }
+                } else {
+                    console.error("Full site takeover overlay element not found.");
+                }
+            } else { 
+                document.body.classList.remove('site-takeover-active');
+                if (fullSiteOverlay) {
+                    fullSiteOverlay.classList.remove('visible');
+                    fullSiteOverlay.classList.add('hidden');
+                }
+                if (mainSiteContentWrapper) mainSiteContentWrapper.style.filter = 'none';
+
+                const visibilitySettings = JSON.parse(localStorage.getItem('triumindSectionVisibility')) || {};
+                const isCountdownSectionVisible = visibilitySettings.countdownVisible !== undefined ? visibilitySettings.countdownVisible : true;
+
+                if (countdownSectionEl) {
+                    if (isCountdownSectionVisible) {
+                        countdownSectionEl.classList.remove('hidden');
+                        const isOverSection = updateCountdownDisplay(targetTimestamp, sectionCountdownElements, sectionLiveMessage, sectionCountdownElements.timerContainer, 'section');
+                        if (!isOverSection) {
+                            mainCountdownInterval = setInterval(() => {
+                                updateCountdownDisplay(targetTimestamp, sectionCountdownElements, sectionLiveMessage, sectionCountdownElements.timerContainer, 'section');
+                            }, 1000);
+                        }
+                    } else {
+                        countdownSectionEl.classList.add('hidden'); 
+                    }
+                } else {
+                    console.error("Section countdown element not found.");
+                }
+            }
+        }
+
+
         function renderProducts() {
             const productGrid = document.getElementById('product-grid');
             const noProductsMessageStorefront = document.getElementById('no-products-storefront');
@@ -926,7 +1058,8 @@
             }
             let products = [];
             try {
-                products = JSON.parse(localStorage.getItem('triumindProducts')) || [];
+                const storedProducts = localStorage.getItem('triumindProducts');
+                if (storedProducts) products = JSON.parse(storedProducts);
             } catch (e) { console.error("Error parsing products from localStorage:", e); products = []; }
             
             const activeProducts = products.filter(product => product && product.status === 'Active');
@@ -974,12 +1107,60 @@
             }
         }
 
-        // --- DOMContentLoaded & Storage Event Listener --- 
+        // --- Stories Rendering ---
+        function renderStories() {
+            const storiesGrid = document.getElementById('stories-grid');
+            const noStoriesMessage = document.getElementById('no-stories-message');
+            if (!storiesGrid || !noStoriesMessage) {
+                console.error("Stories grid or no-stories message element not found.");
+                return;
+            }
+
+            storiesGrid.innerHTML = ''; // Clear existing stories
+            let stories = [];
+            try {
+                const storedStories = localStorage.getItem('triumindStories');
+                if (storedStories) {
+                    stories = JSON.parse(storedStories);
+                }
+            } catch (e) {
+                console.error("Error parsing stories from localStorage:", e);
+                stories = []; // Default to empty array on error
+            }
+
+            let displayedStoriesCount = 0;
+            if (Array.isArray(stories)) {
+                stories.forEach((story, index) => {
+                    if (story && story.imageDataUrl) { // Only render if there's image data
+                        const img = document.createElement('img');
+                        img.src = story.imageDataUrl;
+                        img.alt = `Style Story ${index + 1}`;
+                        img.classList.add('rounded-lg', 'shadow-lg', 'img-hover-effect', 'w-full', 'h-auto', 'object-cover', 'aspect-[4/5]');
+                        img.onerror = function() { 
+                            this.src='https://placehold.co/400x500/1f1f1f/cccccc?text=Error'; 
+                            // Optionally hide the element or the whole grid if an error occurs
+                            // For now, it will show the placeholder.
+                        };
+                        storiesGrid.appendChild(img);
+                        displayedStoriesCount++;
+                    }
+                });
+            }
+
+            if (displayedStoriesCount === 0) {
+                noStoriesMessage.classList.remove('hidden');
+                storiesGrid.classList.add('hidden'); // Hide grid if no stories
+            } else {
+                noStoriesMessage.classList.add('hidden');
+                storiesGrid.classList.remove('hidden'); // Show grid
+            }
+        }
         
         document.addEventListener('DOMContentLoaded', () => {
             applySectionVisibility(); 
             startMainSiteCountdown(); 
             renderProducts(); 
+            renderStories(); 
             loadCartFromStorage();
 
             const currentYearEl = document.getElementById('current-year');
@@ -990,55 +1171,82 @@
             if (cartCloseButton) cartCloseButton.addEventListener('click', closeCart);
             
             if (modalOverlay) {
-                modalOverlay.addEventListener('click', () => {
-                    if (cartModal && cartModal.classList.contains('open')) closeCart();
-                    const sizeGuide = document.getElementById('sizeGuideModal');
-                    if (sizeGuide && sizeGuide.style.display === "block") closeGenericModal('sizeGuideModal');
+                modalOverlay.addEventListener('click', (event) => { 
+                    if (event.target === modalOverlay) { 
+                        if (cartModal && cartModal.classList.contains('open')) closeCart();
+                        const sizeGuide = document.getElementById('sizeGuideModal');
+                        if (sizeGuide && sizeGuide.style.display === "block") closeGenericModal('sizeGuideModal');
+                    }
                 });
             }
 
+
             if (cartCheckoutButton) {
                 cartCheckoutButton.addEventListener('click', () => {
-                    if (cartItems.length > 0) {
-                        showToast('Proceeding to checkout (simulation)...');
-                        const newOrder = {
-                            id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                            timestamp: new Date().toISOString(),
-                            items: [...cartItems], 
-                            totalAmount: cartItems.reduce((total, item) => total + (item.price * item.quantity), 0),
-                            customerName: "Valued Customer", 
-                            customerEmail: "customer@example.com",
-                            customerPhone: "555-123-4567",
-                            customerAddress: "123 Futura Drive, Sector 7",
-                            status: "Processing" 
-                        };
-                        try {
-                            let orders = JSON.parse(localStorage.getItem('triumindOrders')) || [];
-                            orders.push(newOrder);
-                            localStorage.setItem('triumindOrders', JSON.stringify(orders));
-                        } catch (e) {
-                            console.error("Error saving order to localStorage:", e);
-                            showToast('Error placing order. Please try again.');
-                            return; 
-                        }
-                        setTimeout(() => {
-                            cartItems = []; 
-                            saveCartToStorage(); 
-                            renderCart(); 
-                            closeCart();
-                            showToast('Order placed (simulation)! Thank you.');
-                        }, 1500);
-                    } else {
+                    if (cartItems.length === 0) {
                         showToast('Your cart is empty.');
+                        return;
                     }
+
+                    const email = cartCustomerEmailInput ? cartCustomerEmailInput.value.trim() : '';
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
+
+                    if (!email || !emailRegex.test(email)) {
+                        showToast('Please enter a valid email to proceed.');
+                        if (cartCustomerEmailInput) cartCustomerEmailInput.focus();
+                        return;
+                    }
+                    
+                    try {
+                        let newsletterSignups = JSON.parse(localStorage.getItem('triumindNewsletterSignups')) || [];
+                        if (!newsletterSignups.includes(email)) {
+                            newsletterSignups.push(email);
+                            localStorage.setItem('triumindNewsletterSignups', JSON.stringify(newsletterSignups));
+                            showToast('Email saved for newsletter!');
+                        }
+                    } catch (e) {
+                        console.error("Error saving email to newsletter list:", e);
+                    }
+
+
+                    showToast('Proceeding to checkout (simulation)...');
+                    const newOrder = {
+                        id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                        timestamp: new Date().toISOString(),
+                        items: [...cartItems], 
+                        totalAmount: cartItems.reduce((total, item) => total + (item.price * item.quantity), 0),
+                        customerName: "Valued Customer", 
+                        customerEmail: email, 
+                        customerPhone: "555-123-4567",      
+                        customerAddress: "123 Futura Drive, Sector 7", 
+                        status: "Processing" 
+                    };
+                    try {
+                        let orders = JSON.parse(localStorage.getItem('triumindOrders')) || [];
+                        orders.push(newOrder);
+                        localStorage.setItem('triumindOrders', JSON.stringify(orders));
+                    } catch (e) {
+                        console.error("Error saving order to localStorage:", e);
+                        showToast('Error placing order. Please try again.');
+                        return; 
+                    }
+                    setTimeout(() => {
+                        cartItems = []; 
+                        saveCartToStorage(); 
+                        renderCart(); 
+                        if(cartCustomerEmailInput) cartCustomerEmailInput.value = ''; 
+                        closeCart();
+                        showToast('Order placed (simulation)! Thank you.');
+                    }, 1500);
                 });
             }
 
             window.addEventListener('storage', (event) => {
                 if (event.key === 'triumindProducts') { renderProducts(); }
-                if (event.key === 'triumindCountdownTarget' || event.key === 'triumindCountdownMode') { startMainSiteCountdown(); } 
-                if (event.key === 'triumindSectionVisibility') { applySectionVisibility(); }
+                if (event.key === 'triumindCountdownSettings') { startMainSiteCountdown(); } 
+                if (event.key === 'triumindSectionVisibility') { applySectionVisibility(); renderStories(); }
                 if (event.key === 'triumindCart') { loadCartFromStorage(); } 
+                if (event.key === 'triumindStories') { renderStories(); } 
             });
 
             document.addEventListener('keydown', (event) => {
