@@ -110,7 +110,7 @@
         .text-glow { text-shadow: 0 0 10px var(--admin-shadow-color), 0 0 20px rgba(139, 92, 246, 0.1); }
 
         #add-product-form-container { max-height: 0; overflow: hidden; transition: max-height 0.7s ease-in-out, padding 0.7s ease-in-out; padding: 0 1.5rem; }
-        #add-product-form-container.open { max-height: 2200px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        #add-product-form-container.open { max-height: 2500px; padding: 1.5rem; margin-bottom: 1.5rem; }
 
         .image-upload-container { border: 2px dashed var(--admin-border-color); padding: 1rem; border-radius: 0.25rem; text-align: center; cursor: pointer; transition: border-color 0.2s ease; }
         .image-upload-container:hover { border-color: var(--admin-accent-primary); }
@@ -231,7 +231,7 @@
             margin-top: 0.5rem;
         }
 
-        /* NEW: Size Guide Editor Styles */
+        /* Size Guide Editor Styles */
         #size-guide-modal-content {
             max-width: 90vw;
             width: 1200px;
@@ -356,9 +356,20 @@
                         <div><label for="product-name" class="form-label">Product Designation</label><input type="text" id="product-name" name="productName" class="form-input" required></div>
                         <div><label for="product-description" class="form-label">Tactical Brief (Description)</label><textarea id="product-description" name="productDescription" rows="3" class="form-textarea" required></textarea></div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label for="product-price" class="form-label">Credit Value (Price)</label><input type="number" id="product-price" name="productPrice" class="form-input" step="0.01" min="0" required></div>
+                            <div><label for="product-price" class="form-label">Default Credit Value (Price in USD)</label><input type="number" id="product-price" name="productPrice" class="form-input" step="0.01" min="0" required></div>
                             <div><label for="product-sku" class="form-label">SKU / Unit ID</label><input type="text" id="product-sku" name="productSku" class="form-input"></div>
                         </div>
+
+                        <!-- NEW: Country Specific Pricing Section -->
+                        <div class="border-t border-[var(--admin-border-color)] pt-4">
+                            <label class="form-label">Country Specific Pricing (Optional)</label>
+                            <div id="country-prices-list" class="space-y-2 mb-2">
+                                <!-- Country price entries will be dynamically added here by JS -->
+                            </div>
+                            <button type="button" id="add-country-price-btn" class="btn btn-secondary btn-sm w-full"><i class="fas fa-plus mr-2"></i>Add Country Price</button>
+                        </div>
+
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div><label for="product-stock" class="form-label">Stock Level</label><input type="number" id="product-stock" name="productStock" class="form-input" min="0" value="0" required></div>
                             <div>
@@ -375,11 +386,6 @@
                                 <input type="text" id="product-sizes" name="productSizes" class="form-input" placeholder="e.g., S, M, L, XL">
                             </div>
                             <div>
-                                <label for="product-sizes" class="form-label">Available Sizes (comma-separated)</label>
-                                <input type="text" id="product-sizes" name="productSizes" class="form-input" placeholder="e.g., S, M, L, XL">
-                            </div>
-                            <!-- Color Input Section Modified -->
-                            <div>
                                 <label class="form-label">Available Colors</label>
                                 <div id="product-colors-list-editor" class="space-y-2 mb-2">
                                     <!-- Color entries will be dynamically added here by JS -->
@@ -387,7 +393,6 @@
                                 <button type="button" id="add-product-color-btn" class="btn btn-secondary btn-sm w-full"><i class="fas fa-plus mr-2"></i>Add Color</button>
                             </div>
                         </div>
-                        <!-- NEW: Size Guide Button -->
                         <div>
                             <label class="form-label">Custom Size Guide</label>
                             <button type="button" id="open-size-guide-editor" class="btn btn-secondary w-full"><i class="fas fa-ruler-combined mr-2"></i>Create / Edit Size Guide</button>
@@ -408,7 +413,7 @@
                 </div>
                 <div class="card overflow-x-auto mt-6">
                     <table class="w-full table">
-                        <thead><tr><th>Thumbnail</th><th>Designation</th><th>SKU</th><th>Credits</th><th>Stock Level</th><th>Status</th><th>Operations</th></tr></thead>
+                        <thead><tr><th>Thumbnail</th><th>Designation</th><th>SKU</th><th>Default Price</th><th>Stock Level</th><th>Status</th><th>Operations</th></tr></thead>
                         <tbody id="product-table-body"></tbody>
                     </table>
                     <p id="no-products-message" class="text-center py-4 text-gray-500 hidden">No product units deployed yet.</p>
@@ -643,7 +648,7 @@
         </div>
     </div>
 
-    <!-- NEW: Size Guide Editor Modal -->
+    <!-- Size Guide Editor Modal -->
     <div id="size-guide-editor-modal-overlay" class="admin-modal-overlay">
         <div id="size-guide-modal-content" class="admin-modal-content">
             <div class="admin-modal-header">
@@ -741,10 +746,9 @@
             } else if (order.items && typeof order.items === 'object' && !Array.isArray(order.items)) {
                  // Fallback for potentially different items structure if any - this was seen in some order objects
                 itemsHtml = '<ul>';
-                for (const key in order.items) { // Assuming items is an object where each key is an item ID or similar
+                for (const key in order.items) { 
                     if (order.items.hasOwnProperty(key)) {
                         const item = order.items[key];
-                        // Attempt to access common properties, providing defaults
                         const itemName = item.name || key;
                         const itemQty = item.quantity || 1;
                         const itemSize = item.selectedSize || item.size || 'N/A';
@@ -805,45 +809,8 @@
                     }
                 </style>
             `);
-            printWindow.document.write('</head><body>');
-            printWindow.document.write('<div class="label-container">');
             
-            printWindow.document.write('<div class="header-section">');
-            printWindow.document.write('  <div class="logo"><strong>TRIUMIND</strong></div>');
-            printWindow.document.write(`  <div class="order-id-main">Order Date: ${new Date(order.timestamp).toLocaleDateString()}<br><strong>ID: ${order.id}</strong></div>`);
-            printWindow.document.write('</div>');
-
-            printWindow.document.write('<div class="section">');
-            printWindow.document.write('  <h2>Recipient</h2>');
-            printWindow.document.write('  <div class="info-grid">');
-            printWindow.document.write(`    <p><strong>Name:</strong></p> <p>${order.customerName || 'N/A'}</p>`);
-            printWindow.document.write(`    <p><strong>Email:</strong></p> <p>${order.customerEmail || 'N/A'}</p>`);
-            printWindow.document.write(`    <p><strong>Phone:</strong></p> <p>${order.customerPhone || 'N/A'}</p>`);
-            printWindow.document.write(`    <p><strong>Address:</strong></p> <p class="address">${order.customerAddress || 'N/A'}</p>`);
-            printWindow.document.write('  </div>');
-            printWindow.document.write('</div>');
-
-            printWindow.document.write('<div class="section">');
-            printWindow.document.write('  <h2>Order Summary</h2>');
-            printWindow.document.write('  <div class="info-grid">');
-            printWindow.document.write(`    <p><strong>Order Total:</strong></p> <p>$${parseFloat(order.totalAmount || 0).toFixed(2)}</p>`);
-            printWindow.document.write('  </div>');
-            printWindow.document.write('</div>');
-
-            printWindow.document.write('<div class="section items-ordered">');
-            printWindow.document.write('  <h2>Items Ordered</h2>');
-            printWindow.document.write(itemsHtml);
-            printWindow.document.write('</div>');
-            
-            printWindow.document.write('<div class="footer-note">Thank you for your order! - TRIUMIND Systems</div>');
-            printWindow.document.write('</div>'); // end label-container
-
-            printWindow.document.write('<div class="print-button-container"><button class="print-button" onclick="window.print();">Print Label</button></div>');
-            // Auto-print and close with a slight delay to ensure content is rendered.
-            // Using a separate script tag for the timeout logic can be more reliable.
-            printWindow.document.write('<script>document.addEventListener("DOMContentLoaded", function() { setTimeout(function() { try { window.print(); } catch(e) { console.error("Print failed:", e); } setTimeout(function() { try { window.close(); } catch(e) { console.error("Close failed:", e); } }, 200); }, 500); });</scrip'+'t>');
-            printWindow.document.write('</body></html>');
-            printWindow.document.close(); // Important for some browsers to finish loading
+           
         }
 
         // --- Messages Management ---
@@ -1241,11 +1208,19 @@
         let currentSizeGuideData = null;
         
         const productSizesInput = document.getElementById('product-sizes');
-        // const productColorsInput = document.getElementById('product-colors'); // Old input, removed from HTML
-
-        // NEW: Color Management Elements
         const productColorsListEditor = document.getElementById('product-colors-list-editor');
         const addProductColorBtn = document.getElementById('add-product-color-btn');
+
+        // START: Country Pricing Elements & Data
+        const countryPricesList = document.getElementById('country-prices-list');
+        const addCountryPriceBtn = document.getElementById('add-country-price-btn');
+        const countryData = [
+            { code: "US", name: "United States" }, { code: "CA", name: "Canada" }, { code: "GB", name: "United Kingdom" },
+            { code: "AU", name: "Australia" }, { code: "DE", name: "Germany" }, { code: "FR", name: "France" },
+            { code: "JP", name: "Japan" }, { code: "AE", name: "United Arab Emirates" }, { code: "CN", name: "China" },
+            { code: "IN", name: "India" }, { code: "BR", name: "Brazil" }, { code: "ZA", name: "South Africa" }
+        ];
+        // END: Country Pricing Elements & Data
         
         if (imageUploadTrigger && productImagesInput) { 
             imageUploadTrigger.addEventListener('click', () => productImagesInput.click()); 
@@ -1266,7 +1241,7 @@
         function resetProductForm() {
             if (productForm) productForm.reset();
             currentProductImages = [];
-            currentSizeGuideData = null; // NEW: Reset size guide data
+            currentSizeGuideData = null;
             updateSizeGuideStatus();
             renderImagePreviews();
             if (editingProductIdInput) editingProductIdInput.value = ''; 
@@ -1274,10 +1249,10 @@
             if (productFormSubmitBtn) productFormSubmitBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Confirm Deployment';
             if (toggleAddProductFormButton) toggleAddProductFormButton.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Deploy New Unit';
             if (productSizesInput) productSizesInput.value = ''; 
-            renderColorEntries([]); // NEW: Clear dynamic color fields
+            renderColorEntries([]);
+            renderCountryPriceEntries([]); // NEW: Clear country price fields
         }
 
-        // NEW: Function to create a single color entry row
         function createColorEntryRow(color = { name: '', hex: '' }) {
             const entryDiv = document.createElement('div');
             entryDiv.className = 'flex items-center space-x-2 product-color-entry';
@@ -1289,21 +1264,20 @@
             nameInput.value = color.name;
 
             const hexInput = document.createElement('input');
-            hexInput.type = 'text'; // Keep as text for manual # input
-            hexInput.className = 'form-input product-color-hex w-32'; // Fixed width for hex
+            hexInput.type = 'text'; 
+            hexInput.className = 'form-input product-color-hex w-32';
             hexInput.placeholder = '#RRGGBB';
             hexInput.value = color.hex;
-            hexInput.pattern = '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'; // Basic hex pattern
+            hexInput.pattern = '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$';
 
-            // Optional: Add a color picker input for convenience, visually hidden but linked
             const colorPicker = document.createElement('input');
             colorPicker.type = 'color';
-            colorPicker.className = 'product-color-picker w-8 h-8 p-0 border-none cursor-pointer'; // Small clickable swatch
-            colorPicker.value = color.hex || '#000000'; // Default to black if no hex
+            colorPicker.className = 'product-color-picker w-8 h-8 p-0 border-none cursor-pointer';
+            colorPicker.value = color.hex || '#000000';
             colorPicker.addEventListener('input', (e) => {
                 hexInput.value = e.target.value.toUpperCase();
             });
-            hexInput.addEventListener('input', (e) => { // Sync picker if text hex changes
+            hexInput.addEventListener('input', (e) => {
                  if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(e.target.value)) {
                     colorPicker.value = e.target.value;
                  }
@@ -1313,7 +1287,7 @@
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
             removeBtn.innerHTML = '<i class="fas fa-trash text-red-500"></i>';
-            removeBtn.className = 'btn-icon remove-color-entry-btn p-2'; // Adjust styling as needed
+            removeBtn.className = 'btn-icon remove-color-entry-btn p-2';
             removeBtn.title = 'Remove Color';
             removeBtn.addEventListener('click', () => {
                 entryDiv.remove();
@@ -1326,26 +1300,72 @@
             return entryDiv;
         }
 
-        // NEW: Function to render all color entries
         function renderColorEntries(colorsArray = []) {
             if (!productColorsListEditor) return;
-            productColorsListEditor.innerHTML = ''; // Clear existing entries
+            productColorsListEditor.innerHTML = ''; 
             if (colorsArray && colorsArray.length > 0) {
                 colorsArray.forEach(color => {
                     productColorsListEditor.appendChild(createColorEntryRow(color));
                 });
-            } else {
-                // Optionally add one empty row if there are no colors to start
-                // productColorsListEditor.appendChild(createColorEntryRow());
             }
         }
 
-        // NEW: Event listener for "Add Color" button
         if (addProductColorBtn && productColorsListEditor) {
             addProductColorBtn.addEventListener('click', () => {
                 productColorsListEditor.appendChild(createColorEntryRow());
             });
         }
+
+        // START: Country Price Functions
+        function createCountryPriceRow(priceEntry = { country: '', price: '' }) {
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'flex items-center space-x-2 country-price-entry';
+
+            const countrySelect = document.createElement('select');
+            countrySelect.className = 'form-select country-price-country flex-grow';
+            countrySelect.innerHTML = '<option value="">Select Country</option>' + 
+                countryData.map(c => `<option value="${c.code}" ${priceEntry.country === c.code ? 'selected' : ''}>${c.name} (${c.code})</option>`).join('');
+
+            const priceInput = document.createElement('input');
+            priceInput.type = 'number';
+            priceInput.className = 'form-input country-price-value w-40';
+            priceInput.placeholder = 'Price';
+            priceInput.step = '0.01';
+            priceInput.min = '0';
+            priceInput.value = priceEntry.price;
+
+            const currencyLabel = document.createElement('span');
+            currencyLabel.className = 'text-sm text-[var(--admin-text-secondary)]';
+            currencyLabel.textContent = 'USD'; // Or dynamically change based on country
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.innerHTML = '<i class="fas fa-trash text-red-500"></i>';
+            removeBtn.className = 'btn-icon remove-country-price-btn p-2';
+            removeBtn.title = 'Remove Price';
+            removeBtn.addEventListener('click', () => entryDiv.remove());
+
+            entryDiv.appendChild(countrySelect);
+            entryDiv.appendChild(priceInput);
+            entryDiv.appendChild(currencyLabel);
+            entryDiv.appendChild(removeBtn);
+            return entryDiv;
+        }
+
+        function renderCountryPriceEntries(pricesArray = []) {
+            if (!countryPricesList) return;
+            countryPricesList.innerHTML = '';
+            if (pricesArray && pricesArray.length > 0) {
+                pricesArray.forEach(price => countryPricesList.appendChild(createCountryPriceRow(price)));
+            }
+        }
+
+        if (addCountryPriceBtn) {
+            addCountryPriceBtn.addEventListener('click', () => {
+                countryPricesList.appendChild(createCountryPriceRow());
+            });
+        }
+        // END: Country Price Functions
 
 
         if (toggleAddProductFormButton && addProductFormContainer) {
@@ -1470,16 +1490,22 @@
             } else if (productSizesInput) {
                 productSizesInput.value = '';
             }
-            // NEW: Populate color editor
             if (productToEdit.colors && Array.isArray(productToEdit.colors)) {
                 renderColorEntries(productToEdit.colors);
             } else {
-                renderColorEntries([]); // Clear if no colors or old format
+                renderColorEntries([]); 
             }
             
+            // NEW: Populate country prices
+            if (productToEdit.countryPrices && Array.isArray(productToEdit.countryPrices)) {
+                renderCountryPriceEntries(productToEdit.countryPrices);
+            } else {
+                renderCountryPriceEntries([]);
+            }
+
             currentProductImages = productToEdit.images ? [...productToEdit.images] : []; 
-            currentSizeGuideData = productToEdit.sizeGuideData || null; // NEW: Load size guide data
-            updateSizeGuideStatus(); // NEW: Update the status message
+            currentSizeGuideData = productToEdit.sizeGuideData || null;
+            updateSizeGuideStatus(); 
             renderImagePreviews();
 
             if (productFormTitle) productFormTitle.textContent = 'Edit Product Deployment';
@@ -1537,12 +1563,10 @@
         function deleteProduct(productId) {
             if (!confirm('Are you sure you want to delete this product? This will also remove its reviews.')) return;
             
-            // Delete product
             let products = getProducts();
             products = products.filter(p => p.id !== productId);
             saveProducts(products);
 
-            // FIXED BUG: Delete associated reviews
             let allReviews = getReviews();
             if (allReviews[productId]) {
                 delete allReviews[productId];
@@ -1551,7 +1575,7 @@
             
             renderProductsTable();
             if(!document.getElementById('reviews-admin-section').classList.contains('hidden')) {
-                renderReviewsTable(); // If reviews section is open, refresh it
+                renderReviewsTable(); 
             }
             updateDashboardMetrics(); 
         }
@@ -1560,7 +1584,7 @@
              productForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                  if (currentProductImages.length === 0) { 
-                    alert("Please upload at least one product image."); // Using alert as a placeholder for better UI notification
+                    alert("Please upload at least one product image."); 
                     return; 
                 }
                 if (currentProductImages.length > 0 && !currentProductImages.some(img => img.isPrimary)) { 
@@ -1579,7 +1603,6 @@
                 const sizesString = productSizesInput ? productSizesInput.value : '';
                 const productSizesArray = sizesString.split(',').map(s => s.trim()).filter(s => s !== '');
 
-                // NEW: Collect color data from dynamic rows
                 const collectedColors = [];
                 const colorEntryRows = productColorsListEditor.querySelectorAll('.product-color-entry');
                 let colorsValid = true;
@@ -1597,32 +1620,52 @@
                             return;
                         }
                         collectedColors.push({ name, hex });
-                    } else if (name || hex) { // If one is filled but not the other
+                    } else if (name || hex) { 
                         alert('Both Color Name and Hex Code must be filled for each color entry, or leave both blank to ignore the row.');
                         if (!name && nameInput) nameInput.focus();
                         else if (!hex && hexInput) hexInput.focus();
                         colorsValid = false;
                         return;
                     }
-                    // If both are blank, the row is just ignored, not added to collectedColors
                 });
 
-                if (!colorsValid) return; // Stop submission if color validation failed
+                if (!colorsValid) return; 
+
+                // NEW: Collect country prices
+                const collectedCountryPrices = [];
+                const countryPriceRows = countryPricesList.querySelectorAll('.country-price-entry');
+                let countryPricesValid = true;
+                countryPriceRows.forEach(row => {
+                    const countrySelect = row.querySelector('.country-price-country');
+                    const priceInput = row.querySelector('.country-price-value');
+                    const country = countrySelect ? countrySelect.value : '';
+                    const price = priceInput ? priceInput.value : '';
+
+                    if (country && price) {
+                        collectedCountryPrices.push({ country, price });
+                    } else if (country || price) {
+                        alert('Both Country and Price must be filled for each country price entry.');
+                        countryPricesValid = false;
+                        return;
+                    }
+                });
+
+                if (!countryPricesValid) return;
                                 
                 const editingId = editingProductIdInput ? editingProductIdInput.value : '';
                 let products = getProducts();
-                let successMessageText = '';
-
+                
                 const productData = {
                     name: productName,
                     description: document.getElementById('product-description').value,
-                    price: productPrice,
+                    price: productPrice, // This is now the default/base price
+                    countryPrices: collectedCountryPrices, // NEW: Add country prices
                     sku: document.getElementById('product-sku').value,
                     stock: productStock,
                     status: document.getElementById('product-status').value,
                     images: [...currentProductImages],
                     sizes: productSizesArray, 
-                    colors: collectedColors, // MODIFIED: Use new collected colors
+                    colors: collectedColors, 
                     sizeGuideData: currentSizeGuideData
                 };
 
@@ -1644,7 +1687,7 @@
             });
         }
 
-        // START: NEW Size Guide Editor Logic
+        // START: Size Guide Editor Logic
         const sizeGuideEditorOverlay = document.getElementById('size-guide-editor-modal-overlay');
         const openSizeGuideEditorBtn = document.getElementById('open-size-guide-editor');
         const closeSizeGuideEditorBtn = document.getElementById('size-guide-editor-close-btn');
@@ -1680,15 +1723,13 @@
             const table = sizeGuideEditorTable;
             if (!table) return;
 
-            // Default structure if no data exists
             const guideData = data && data.headers && data.rows ? data : {
                 headers: ['Size', 'Chest (cm)'],
                 rows: [['S', '92-96'], ['M', '97-101']]
             };
 
-            table.innerHTML = ''; // Clear previous content
+            table.innerHTML = ''; 
 
-            // Create header
             const thead = table.createTHead();
             const headerRow = thead.insertRow();
             guideData.headers.forEach((headerText, index) => {
@@ -1699,7 +1740,6 @@
                 headerRow.appendChild(th);
             });
 
-            // Create body
             const tbody = table.createTBody();
             guideData.rows.forEach((rowData, rowIndex) => {
                 const row = tbody.insertRow();
@@ -1708,7 +1748,6 @@
                     cell.setAttribute('contenteditable', 'true');
                     cell.textContent = cellData;
                 });
-                // Add remove button to the first cell of each data row
                 if (row.cells[0]) {
                      row.cells[0].innerHTML += `<button class="size-guide-remove-btn size-guide-remove-row-btn" data-row-index="${rowIndex}" title="Remove row">&times;</button>`;
                 }
@@ -1788,7 +1827,7 @@
                 }
             });
         }
-        // END: NEW Size Guide Editor Logic
+        // END: Size Guide Editor Logic
 
 
         // Order Management
@@ -1891,7 +1930,6 @@
             if (!orderTableBody || !noOrdersMsgEl) return;
             let orders = getOrders();
             orderTableBody.innerHTML = ''; 
-            // Corrected: Assign to existing global variable, do not re-declare with let/const
             currentOrderFilter = filterStatus; 
             let filteredOrders = (filterStatus !== 'All') ? orders.filter(order => order.status === filterStatus) : orders;
             document.querySelectorAll('#order-filter-buttons .btn-filter').forEach(b => b.classList.toggle('active', b.dataset.status === filterStatus));
