@@ -202,7 +202,7 @@
             color: #eab308;
         }
 
-        /* NEW: Size Guide Modal Styles */
+        /* Size Guide Modal Styles */
         #size-guide-modal {
             width: 90%;
             max-width: 800px; /* Can be adjusted */
@@ -351,7 +351,6 @@
                     <div id="product-sizes-section" class="mb-8 hidden">
                         <div class="flex items-center justify-between mb-2">
                            <h3 class="text-sm font-medium text-gray-400">Select Size</h3>
-                           <!-- MODIFIED: "Size guide" link is now dynamically controlled -->
                            <a href="#" id="size-guide-link" class="text-sm font-medium text-purple-400 hover:text-purple-300 hidden">Size guide</a>
                         </div>
                         <div id="product-sizes-list" class="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -403,7 +402,7 @@
                             <textarea id="review-text" name="review-text" rows="4" required class="mt-1 block w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"></textarea>
                         </div>
                         <div class="text-right">
-                            <button type="submit" class="triumind-animated-button bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md btn-hover-effect">
+                            <button type="submit" class="triumind-animated-button ajax-form-button bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md btn-hover-effect">
                                 <span class="original-button-text">Submit Review</span>
                             </button>
                         </div>
@@ -454,7 +453,7 @@
     </div>
     <div id="toast-notification" class="toast-notification">Item added to cart!</div>
 
-    <!-- NEW: Size Guide Modal -->
+    <!-- Size Guide Modal -->
     <div id="size-guide-modal" class="modal-content-box">
         <div class="modal-header">
             <h2>Size Guide</h2>
@@ -512,21 +511,24 @@
         const sizeGuideBody = document.getElementById('size-guide-body');
         const sizeGuideCloseButton = document.getElementById('size-guide-close-button');
 
-        // --- NEW: Currency Localization ---
-        let visitorCurrency = {
-            code: 'USD',
-            symbol: '$',
-            rate: 1
+        // --- Localization ---
+        let visitorInfo = {
+            countryCode: 'US',
+            currencyCode: 'USD',
+            currencySymbol: '$',
+            exchangeRate: 1
         };
 
-        async function fetchVisitorCurrency() {
+        async function fetchVisitorInfo() {
             try {
                 const geoResponse = await fetch('https://ipapi.co/json/');
                 if (!geoResponse.ok) throw new Error('Geo-IP API request failed');
                 const geoData = await geoResponse.json();
+                
+                const countryCode = geoData.country_code;
                 const currencyCode = geoData.currency;
-
-                if (!currencyCode) throw new Error('Currency code not found in Geo-IP data');
+                
+                if (!countryCode || !currencyCode) throw new Error('Locale data not found in Geo-IP response');
 
                 const ratesResponse = await fetch('https://open.er-api.com/v6/latest/USD');
                 if (!ratesResponse.ok) throw new Error('Exchange rate API request failed');
@@ -534,41 +536,57 @@
 
                 const exchangeRate = ratesData.rates[currencyCode];
                 if (!exchangeRate) throw new Error(`Exchange rate not found for ${currencyCode}`);
-
+                
                 const currencySymbols = { USD: '$', EUR: '€', GBP: '£', JPY: '¥', AED: 'د.إ' };
                 const currencySymbol = currencySymbols[currencyCode] || currencyCode;
 
-                console.log(`Visitor from ${geoData.country_name}. Currency set to ${currencyCode}. Rate: ${exchangeRate}`);
+                console.log(`Visitor from ${geoData.country_name}. Country: ${countryCode}, Currency: ${currencyCode}, Rate: ${exchangeRate}`);
 
                 return {
-                    code: currencyCode,
-                    symbol: currencySymbol,
-                    rate: exchangeRate
+                    countryCode: countryCode,
+                    currencyCode: currencyCode,
+                    currencySymbol: currencySymbol,
+                    exchangeRate: exchangeRate
                 };
 
             } catch (error) {
-                console.error("Currency detection failed:", error.message, "Defaulting to USD.");
-                return { code: 'USD', symbol: '$', rate: 1 };
+                console.error("Visitor info detection failed:", error.message, "Defaulting to USD.");
+                return { countryCode: 'US', currencyCode: 'USD', currencySymbol: '$', exchangeRate: 1 };
             }
         }
 
-        function formatPrice(usdPrice) {
-            const convertedPrice = usdPrice * visitorCurrency.rate;
-            return new Intl.NumberFormat(undefined, {
-                style: 'currency',
-                currency: visitorCurrency.code
-            }).format(convertedPrice);
+        function getDisplayPriceInfo(product) {
+            if (product && Array.isArray(product.countryPrices)) {
+                const countryOverride = product.countryPrices.find(p => p.country === visitorInfo.countryCode);
+                if (countryOverride && countryOverride.price) {
+                    const convertedPrice = parseFloat(countryOverride.price) * visitorInfo.exchangeRate;
+                    return {
+                        amount: convertedPrice,
+                        currency: visitorInfo.currencyCode
+                    };
+                }
+            }
+            
+            const defaultUsdPrice = parseFloat(product.price || 0);
+            const convertedPrice = defaultUsdPrice * visitorInfo.exchangeRate;
+            return {
+                amount: convertedPrice,
+                currency: visitorInfo.currencyCode
+            };
         }
 
-        async function initializeCurrency() {
-            try {
-                visitorCurrency = await fetchVisitorCurrency();
-                displayProductDetails(); // Re-render product details with the new currency
-                if (cartItems.length > 0) {
-                    renderCart(); // Re-render the cart with the new currency
-                }
-            } catch (error) {
-                console.error("Could not initialize visitor currency.", error);
+        function formatPrice(priceInfo) {
+            return new Intl.NumberFormat(undefined, { 
+                style: 'currency', 
+                currency: priceInfo.currency 
+            }).format(priceInfo.amount);
+        }
+
+        async function initializeLocalization() {
+            visitorInfo = await fetchVisitorInfo();
+            displayProductDetails();
+            if (cartItems.length > 0) {
+                renderCart();
             }
         }
 
@@ -624,7 +642,22 @@
             localStorage.setItem('triumindCart', JSON.stringify(cartItems));
         }
 
-        function addToCart(productId, productName, productPrice, productImage, size, color) {
+        function addToCart(productId, productName, productImage, size, color) {
+            const allProducts = JSON.parse(localStorage.getItem('triumindProducts')) || [];
+            const product = allProducts.find(p => p.id === productId);
+            if (!product) {
+                console.error("Product not found for cart operation:", productId);
+                return;
+            }
+
+            let baseUsdPrice = parseFloat(product.price || 0);
+            if (product.countryPrices && Array.isArray(product.countryPrices)) {
+                const countryOverride = product.countryPrices.find(p => p.country === visitorInfo.countryCode);
+                if (countryOverride && countryOverride.price) {
+                    baseUsdPrice = parseFloat(countryOverride.price);
+                }
+            }
+            
             const existingItemIndex = cartItems.findIndex(item =>
                 item.id === productId && item.selectedSize === size && item.selectedColor === color
             );
@@ -635,7 +668,7 @@
                 cartItems.push({
                     id: productId,
                     name: productName,
-                    price: parseFloat(productPrice),
+                    price: baseUsdPrice,
                     image: productImage,
                     quantity: 1,
                     selectedSize: size,
@@ -690,12 +723,18 @@
                     if (item.selectedSize) optionsText += `Size: ${item.selectedSize} `;
                     if (item.selectedColor) optionsText += `Color: ${item.selectedColor}`;
 
+                    const displayAmount = item.price * visitorInfo.exchangeRate;
+                    const displayPrice = new Intl.NumberFormat(undefined, {
+                        style: 'currency',
+                        currency: visitorInfo.currencyCode
+                    }).format(displayAmount);
+
                     itemElement.innerHTML = `
                         <img src="${item.image || 'https://placehold.co/70x90/1a1a1a/cccccc?text=N/A'}" alt="${item.name}" class="cart-item-image" onerror="this.onerror=null;this.src='https://placehold.co/70x90/1a1a1a/cccccc?text=Error';">
                         <div class="cart-item-details">
                             <h3 class="cart-item-name">${item.name}</h3>
                             ${optionsText ? `<p class="cart-item-selected-options">${optionsText.trim()}</p>` : ''}
-                            <p class="cart-item-price">${formatPrice(item.price)}</p>
+                            <p class="cart-item-price">${displayPrice}</p>
                             <div class="cart-item-quantity">
                                 <button class="quantity-decrease btn-hover-effect" data-id="${item.id}" data-size="${item.selectedSize || ''}" data-color="${item.selectedColor || ''}">-</button>
                                 <span class="mx-2">${item.quantity}</span>
@@ -709,8 +748,13 @@
                     cartBody.appendChild(itemElement);
                 });
             }
-            const totalPrice = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-            cartTotalPriceEl.textContent = formatPrice(totalPrice);
+            const totalPriceUSD = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+            const totalDisplayAmount = totalPriceUSD * visitorInfo.exchangeRate;
+            cartTotalPriceEl.textContent = new Intl.NumberFormat(undefined, {
+                style: 'currency',
+                currency: visitorInfo.currencyCode
+            }).format(totalDisplayAmount);
+
             const totalQuantity = cartItems.reduce((total, item) => total + item.quantity, 0);
             if (totalQuantity > 0) {
                 cartItemCountBadge.textContent = totalQuantity;
@@ -793,12 +837,11 @@
                 return;
             }
 
-            // Populate main details
             productNameEl.textContent = currentProduct.name;
-            productPriceEl.textContent = formatPrice(parseFloat(currentProduct.price));
+            const priceInfo = getDisplayPriceInfo(currentProduct);
+            productPriceEl.textContent = formatPrice(priceInfo);
             productDescriptionEl.innerHTML = `<p>${currentProduct.description}</p>`;
 
-            // Populate images
             if (currentProduct.images && currentProduct.images.length > 0) {
                 const primaryImg = currentProduct.images.find(img => img.isPrimary) || currentProduct.images[0];
                 productMainImageEl.src = primaryImg.dataUrl;
@@ -834,32 +877,28 @@
                 });
             }
 
-            // Populate colors - MODIFIED for new structure
             if (currentProduct.colors && Array.isArray(currentProduct.colors) && currentProduct.colors.length > 0) {
                 productColorsSectionEl.classList.remove('hidden');
                 productColorsListEl.innerHTML = '';
-                // Check if the first element is an object (new format) or string (old format for graceful fallback)
                 if (typeof currentProduct.colors[0] === 'object' && currentProduct.colors[0] !== null && currentProduct.colors[0].hasOwnProperty('name') && currentProduct.colors[0].hasOwnProperty('hex')) {
-                    // New format: array of objects [{name, hex}, ...]
                     currentProduct.colors.forEach(colorObj => {
                         const colorEl = document.createElement('button');
                         colorEl.className = 'color-option';
 
                         const colorSwatch = document.createElement('span');
                         colorSwatch.className = 'color-swatch';
-                        colorSwatch.style.backgroundColor = colorObj.hex || '#CCC'; // Use hex value
+                        colorSwatch.style.backgroundColor = colorObj.hex || '#CCC';
                         colorEl.appendChild(colorSwatch);
-                        colorEl.appendChild(document.createTextNode(colorObj.name)); // Use name property
+                        colorEl.appendChild(document.createTextNode(colorObj.name));
 
                         colorEl.addEventListener('click', () => {
-                            selectedColor = colorObj.name; // Store color name for selection
+                            selectedColor = colorObj.name;
                             productColorsListEl.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
                             colorEl.classList.add('selected');
                         });
                         productColorsListEl.appendChild(colorEl);
                     });
                 } else {
-                    // Fallback for old format: array of strings (if encountered)
                     currentProduct.colors.forEach(colorName => {
                         if (typeof colorName !== 'string') {
                             console.warn('Unexpected color format in fallback:', colorName);
@@ -870,7 +909,6 @@
 
                         const colorSwatch = document.createElement('span');
                         colorSwatch.className = 'color-swatch';
-                        // Attempt to guess color for old format, or default
                         colorSwatch.style.backgroundColor = colorName.toLowerCase().replace(/\s+/g, '') || '#CCC';
                         colorEl.appendChild(colorSwatch);
                         colorEl.appendChild(document.createTextNode(colorName));
@@ -887,7 +925,6 @@
                  productColorsSectionEl.classList.add('hidden');
             }
 
-            // Populate sizes
             if (currentProduct.sizes && currentProduct.sizes.length > 0) {
                 productSizesSectionEl.classList.remove('hidden');
                 productSizesListEl.innerHTML = '';
@@ -906,7 +943,6 @@
                 productSizesSectionEl.classList.add('hidden');
             }
 
-            // Handle Size Guide Link
             if (sizeGuideLink && currentProduct.sizeGuideData && currentProduct.sizeGuideData.headers && currentProduct.sizeGuideData.headers.length > 0) {
                 sizeGuideLink.classList.remove('hidden');
                 sizeGuideLink.onclick = (e) => {
@@ -962,7 +998,10 @@
         if (reviewForm) {
             reviewForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                if (!currentProduct) return;
+                if (!currentProduct) {
+                    showToast('Error: Product context lost. Please refresh.');
+                    return;
+                };
 
                 const name = document.getElementById('reviewer-name').value;
                 const text = document.getElementById('review-text').value;
@@ -1011,17 +1050,15 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            await initializeCurrency(); // Wait for currency to be ready first
+            await initializeLocalization(); 
             loadCartFromStorage();
 
             const currentYearEl = document.getElementById('current-year');
             if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
 
-            // Cart event listeners
             if (cartIconContainer) cartIconContainer.addEventListener('click', openCart);
             if (cartCloseButton) cartCloseButton.addEventListener('click', closeCart);
 
-            // Size guide event listener
             if (sizeGuideCloseButton) sizeGuideCloseButton.addEventListener('click', closeSizeGuide);
 
             if (modalOverlay) {
@@ -1053,7 +1090,6 @@
                 addToCart(
                     currentProduct.id,
                     currentProduct.name,
-                    currentProduct.price,
                     primaryImg ? primaryImg.dataUrl : '',
                     selectedSize,
                     selectedColor
@@ -1136,16 +1172,27 @@
                 if (buttonElement.classList.contains('is-animating-ripple') || buttonElement.dataset.animating === 'true') {
                     return;
                 }
-                event.preventDefault();
+                
+                const isAjaxButton = buttonElement.classList.contains('ajax-form-button');
+
+                if (!isAjaxButton) {
+                    event.preventDefault();
+                }
+
                 buttonElement.dataset.animating = 'true';
 
                 let originalTextSpan = buttonElement.querySelector('.original-button-text');
                 if (!originalTextSpan) {
-                    const currentText = buttonElement.innerHTML;
+                    const contentToWrap = document.createDocumentFragment();
+                    Array.from(buttonElement.childNodes).forEach(child => {
+                        if (!child.classList || !child.classList.contains('animated-brand-text-container')) {
+                            contentToWrap.appendChild(child.cloneNode(true));
+                        }
+                    });
                     buttonElement.innerHTML = '';
                     originalTextSpan = document.createElement('span');
                     originalTextSpan.className = 'original-button-text';
-                    originalTextSpan.innerHTML = currentText;
+                    originalTextSpan.appendChild(contentToWrap);
                     buttonElement.appendChild(originalTextSpan);
                 }
 
@@ -1160,65 +1207,55 @@
                 const rippleExpandTime = 400;
                 const brandTextAppearDelay = 200;
                 const brandTextAppearTime = 300;
-                const holdTime = 800;
-                const resolveTime = 400;
+                const holdTime = 300;
+                const resolveTime = 200;
 
                 buttonElement.classList.add('is-animating-ripple');
                 const timeToFullReveal = Math.max(rippleExpandTime, brandTextAppearDelay + brandTextAppearTime);
 
-                setTimeout(() => {
+                if (!isAjaxButton) {
+                    setTimeout(() => {
+                        setTimeout(() => {
+                            buttonElement.classList.remove('is-animating-ripple');
+                            setTimeout(() => {
+                                try {
+                                    if (buttonElement.tagName === 'A' && buttonElement.href) {
+                                        window.location.href = buttonElement.href;
+                                    } else if (buttonElement.type === 'submit' && buttonElement.form) {
+                                        buttonElement.form.submit();
+                                    }
+                                } catch (e) {
+                                    console.error("Error performing button action after animation:", e);
+                                } finally {
+                                    delete buttonElement.dataset.animating;
+                                }
+                            }, resolveTime);
+                        }, holdTime);
+                    }, timeToFullReveal);
+                } else {
                     setTimeout(() => {
                         buttonElement.classList.remove('is-animating-ripple');
                         setTimeout(() => {
                             delete buttonElement.dataset.animating;
-                            if (buttonElement.tagName === 'A' && buttonElement.href) {
-                                window.location.href = buttonElement.href;
-                            } else if (buttonElement.type === 'submit' && buttonElement.form) {
-                                buttonElement.form.submit();
-                            }
                         }, resolveTime);
-                    }, holdTime);
-                }, timeToFullReveal);
+                    }, timeToFullReveal + holdTime);
+                }
             }
+
 
             function initializeAnimatedButtons() {
                 const buttonsToAnimate = document.querySelectorAll('.triumind-animated-button');
                 buttonsToAnimate.forEach(button => {
-                    // Check if this button has already been initialized for animation
                     if (button.dataset.animationInitialized === 'true') {
                         return;
                     }
-
-                    let originalTextSpan = button.querySelector('.original-button-text');
-                    if (!originalTextSpan) {
-                        const contentToWrap = document.createDocumentFragment();
-                        Array.from(button.childNodes).forEach(child => {
-                            if (!child.classList || !child.classList.contains('animated-brand-text-container')) {
-                                contentToWrap.appendChild(child.cloneNode(true));
-                            }
-                        });
-                        button.innerHTML = '';
-                        originalTextSpan = document.createElement('span');
-                        originalTextSpan.className = 'original-button-text';
-                        originalTextSpan.appendChild(contentToWrap);
-                        button.appendChild(originalTextSpan);
-                    }
-
-                    let animatedTextContainer = button.querySelector('.animated-brand-text-container');
-                    if (!animatedTextContainer) {
-                        animatedTextContainer = document.createElement('span');
-                        animatedTextContainer.className = 'animated-brand-text-container';
-                        animatedTextContainer.textContent = 'TRIUMIND';
-                        button.appendChild(animatedTextContainer);
-                    }
-
                     button.addEventListener('click', function(event) {
                         animateButtonInteraction(this, event);
                     });
                     button.dataset.animationInitialized = 'true';
                 });
             }
-            initializeAnimatedButtons(); // Initialize for Gear.html
+            initializeAnimatedButtons(); 
         });
     </script>
 </body>
