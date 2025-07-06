@@ -198,7 +198,7 @@
         }
         .story-image-preview-container {
             width: 100%;
-            height: 200px; /* Adjust as needed */
+            height: 200px;
             background-color: var(--admin-bg-tertiary);
             border-radius: 0.25rem;
             display: flex;
@@ -206,17 +206,93 @@
             justify-content: center;
             margin-bottom: 0.75rem;
             border: 1px dashed var(--admin-border-color);
-            overflow: hidden; /* To contain the image */
+            overflow: hidden;
         }
         .story-image-preview {
             max-width: 100%;
             max-height: 100%;
-            object-fit: contain; /* Changed to contain to see whole image */
+            object-fit: contain;
             display: block;
         }
         .story-image-input {
-            display: none; /* Hidden, triggered by label/button */
+            display: none;
         }
+        .review-stars { color: #eab308; }
+        
+        .checkbox-list-container {
+            max-height: 12rem;
+            overflow-y: auto;
+            padding: 0.75rem;
+            background-color: var(--admin-bg-tertiary);
+            border: 1px solid var(--admin-border-color);
+            border-radius: 0.375rem;
+        }
+        .checkbox-list-container > * + * {
+            margin-top: 0.5rem;
+        }
+
+        /* NEW: Size Guide Editor Styles */
+        #size-guide-modal-content {
+            max-width: 90vw;
+            width: 1200px;
+        }
+        .size-guide-editor-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .size-guide-editor-table-wrapper {
+            overflow: auto;
+            max-height: 60vh;
+        }
+        .size-guide-editor-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .size-guide-editor-table th, .size-guide-editor-table td {
+            border: 1px solid var(--admin-border-color);
+            padding: 0.75rem;
+            position: relative;
+            color: var(--admin-text-primary);
+        }
+        .size-guide-editor-table th {
+            background-color: rgba(139, 92, 246, 0.1);
+        }
+        .size-guide-editor-table [contenteditable="true"] {
+            outline: 2px dashed transparent;
+            transition: outline-color 0.2s;
+            min-width: 50px;
+        }
+        .size-guide-editor-table [contenteditable="true"]:focus {
+            outline-color: var(--admin-accent-primary);
+            background-color: var(--admin-bg-tertiary);
+        }
+        .size-guide-remove-btn {
+            position: absolute;
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 0.7rem;
+        }
+        .size-guide-remove-col-btn { top: -11px; right: -11px; }
+        .size-guide-remove-row-btn { top: 50%; transform: translateY(-50%); left: -11px; }
+        .size-guide-editor-table th:hover .size-guide-remove-col-btn,
+        .size-guide-editor-table td:hover .size-guide-remove-row-btn {
+            opacity: 1;
+        }
+        .size-guide-remove-btn:hover { background-color: #dc2626; }
+
     </style>
 </head>
 <body>
@@ -225,6 +301,8 @@
         <nav class="sidebar-nav">
             <a href="#dashboard" class="nav-link active" data-target="dashboard-section"><i class="fas fa-solar-panel"></i> Dashboard</a>
             <a href="#products" class="nav-link" data-target="products-section"><i class="fas fa-cubes-stacked"></i> Products</a>
+            <a href="#reviews-admin" class="nav-link" data-target="reviews-admin-section"><i class="fas fa-star"></i> Reviews</a>
+            <a href="#messages-admin" class="nav-link" data-target="messages-admin-section"><i class="fas fa-envelope"></i> Messages</a>
             <a href="#orders" class="nav-link" data-target="orders-section"><i class="fas fa-file-invoice-dollar"></i> Orders</a>
             <a href="#drops" class="nav-link" data-target="drops-section"><i class="fas fa-satellite-dish"></i> Drops & Countdown</a>
             <a href="#stories-admin" class="nav-link" data-target="stories-admin-section"><i class="fas fa-book-open"></i> Stories</a>
@@ -297,9 +375,23 @@
                                 <input type="text" id="product-sizes" name="productSizes" class="form-input" placeholder="e.g., S, M, L, XL">
                             </div>
                             <div>
-                                <label for="product-colors" class="form-label">Available Colors (comma-separated)</label>
-                                <input type="text" id="product-colors" name="productColors" class="form-input" placeholder="e.g., Black, White, Red">
+                                <label for="product-sizes" class="form-label">Available Sizes (comma-separated)</label>
+                                <input type="text" id="product-sizes" name="productSizes" class="form-input" placeholder="e.g., S, M, L, XL">
                             </div>
+                            <!-- Color Input Section Modified -->
+                            <div>
+                                <label class="form-label">Available Colors</label>
+                                <div id="product-colors-list-editor" class="space-y-2 mb-2">
+                                    <!-- Color entries will be dynamically added here by JS -->
+                                </div>
+                                <button type="button" id="add-product-color-btn" class="btn btn-secondary btn-sm w-full"><i class="fas fa-plus mr-2"></i>Add Color</button>
+                            </div>
+                        </div>
+                        <!-- NEW: Size Guide Button -->
+                        <div>
+                            <label class="form-label">Custom Size Guide</label>
+                            <button type="button" id="open-size-guide-editor" class="btn btn-secondary w-full"><i class="fas fa-ruler-combined mr-2"></i>Create / Edit Size Guide</button>
+                            <p id="size-guide-status" class="text-xs text-[var(--admin-text-secondary)] mt-2">No size guide created for this product yet.</p>
                         </div>
                         <div>
                             <label class="form-label">Product Visuals (Drag to reorder, first is primary by default)</label>
@@ -320,6 +412,46 @@
                         <tbody id="product-table-body"></tbody>
                     </table>
                     <p id="no-products-message" class="text-center py-4 text-gray-500 hidden">No product units deployed yet.</p>
+                </div>
+            </section>
+            
+            <section id="reviews-admin-section" class="admin-section hidden">
+                <h2 class="section-title text-glow">Review Management</h2>
+                <div class="card overflow-x-auto">
+                    <table class="w-full table">
+                        <thead>
+                            <tr>
+                                <th>Author</th>
+                                <th>Rating</th>
+                                <th>Review</th>
+                                <th>Product</th>
+                                <th>Feature on Home</th>
+                                <th>Operations</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reviews-table-body">
+                        </tbody>
+                    </table>
+                    <p id="no-reviews-admin-message" class="text-center py-4 text-gray-500 hidden">No reviews submitted yet.</p>
+                </div>
+            </section>
+            
+            <section id="messages-admin-section" class="admin-section hidden">
+                 <h2 class="section-title text-glow">Contact Messages</h2>
+                 <div class="card overflow-x-auto">
+                     <table class="w-full table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>From</th>
+                                <th>Message</th>
+                                <th>Operations</th>
+                            </tr>
+                        </thead>
+                        <tbody id="messages-table-body">
+                        </tbody>
+                    </table>
+                    <p id="no-messages-admin-message" class="text-center py-4 text-gray-500 hidden">No messages received yet.</p>
                 </div>
             </section>
 
@@ -350,27 +482,45 @@
                     <p id="no-orders-message" class="text-center py-4 text-gray-500 hidden">No order transmissions received yet.</p>
                 </div>
             </section>
+
             <section id="drops-section" class="admin-section hidden">
                 <h2 class="section-title text-glow">Temporal Control: Drops</h2>
                 <div class="card">
                     <h3 class="text-xl font-medium mb-4 text-[var(--admin-accent-primary)]">Synchronize Next Drop Event</h3>
                     <form class="space-y-5" id="adminDropForm">
                         <div><label class="form-label">Countdown Mode</label><div class="form-radio-group"><label class="form-radio-label"><input type="radio" name="countdownMode" value="section" class="form-radio-input" checked> Section Display</label><label class="form-radio-label"><input type="radio" name="countdownMode" value="takeover" class="form-radio-input"> Full Site Takeover</label></div></div>
-                        <div><label for="drop-date" class="form-label">Target Date (UTC)</label><input type="date" id="drop-date" name="drop-date" class="form-input"></div>
-                        <div><label for="drop-time" class="form-label">Target Time (UTC)</label><input type="time" id="drop-time" name="drop-time" class="form-input"></div>
+                        <div><label for="drop-date" class="form-label">Target Date (UTC)</label><input type="date" id="drop-date" name="drop-date" class="form-input" required></div>
+                        <div><label for="drop-time" class="form-label">Target Time (UTC)</label><input type="time" id="drop-time" name="drop-time" class="form-input" required></div>
                         
+                        <div>
+                            <label class="form-label">Products to Activate on Drop (Required)</label>
+                            <div id="drop-activation-products-checkbox-container" class="checkbox-list-container">
+                                <!-- Checkboxes will be injected here by JS -->
+                            </div>
+                            <small class="text-xs text-[var(--admin-text-secondary)] mt-1 block">Select one or more DRAFT products to make Active when the countdown ends.</small>
+                        </div>
+
+                        <div>
+                            <label for="also-feature-in-gear" class="form-checkbox-label">
+                                <input type="checkbox" id="also-feature-in-gear" name="alsoFeatureInGear" class="form-checkbox-input">
+                                <span>Also feature these products in the main 'Gear' section</span>
+                            </label>
+                        </div>
+
+                        <div id="drop-form-feedback" class="text-red-400 text-sm hidden"></div>
                         <div><button type="submit" class="btn btn-primary w-full"><i class="fas fa-satellite-dish mr-2"></i>Initiate Synchronization</button></div>
                     </form>
-                    <div class="mt-8 pt-6 border-t border-[var(--admin-border-color)]"><h4 class="text-lg font-medium mb-2 text-gray-400">Current Event Horizon:</h4><p id="current-countdown-display" class="text-[var(--admin-accent-primary)] text-xl font-semibold">T-Minus: Not Set (Mode: Section)</p></div>
+                    <div class="mt-8 pt-6 border-t border-[var(--admin-border-color)]"><h4 class="text-lg font-medium mb-2 text-gray-400">Current Event Horizon:</h4><p id="current-countdown-display" class="text-[var(--admin-accent-primary)] text-xl font-semibold">T-Minus: Not Set</p></div>
                 </div>
             </section>
 
             <section id="stories-admin-section" class="admin-section hidden">
                 <h2 class="section-title text-glow">Manage Stories</h2>
                 <div class="card">
-                    <p class="text-sm text-[var(--admin-text-secondary)] mb-6">Upload images for the four story slots displayed on the main page. If an image is removed, the corresponding story card will not be shown.</p>
+                    <p class="text-sm text-[var(--admin-text-secondary)] mb-6">Upload images for the four story slots displayed on the main page. If an image is removed, the corresponding story card will not be shown. Attach a message to each story.</p>
                     <div id="story-slots-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        </div>
+                        <!-- Story slots will be injected here by JavaScript -->
+                    </div>
                     <div class="mt-6 text-center">
                         <button id="save-stories-changes" class="btn btn-primary"><i class="fas fa-save mr-2"></i>Save Story Changes</button>
                     </div>
@@ -390,9 +540,10 @@
             </section>
             
             <section id="sections-section" class="admin-section hidden">
-                <h2 class="section-title text-glow">Customize Sections Visibility</h2>
-                <div class="card">
+                <h2 class="section-title text-glow">Customize Site Sections</h2>
+                <div class="card mb-6">
                     <form id="section-visibility-form" class="space-y-3">
+                        <h3 class="text-xl font-medium mb-3 text-[var(--admin-accent-primary)]">Section Visibility</h3>
                         <p class="text-sm text-[var(--admin-text-secondary)] mb-4">Control which sections appear on your storefront. The Hero section is always visible.</p>
                         <label class="toggle-switch-label" for="countdownVisible"><span>Countdown Section</span><div class="toggle-switch"><input type="checkbox" id="countdownVisible" name="countdownVisible"><span class="toggle-slider"></span></div></label>
                         <label class="toggle-switch-label" for="gearVisible"><span>Gear Section</span><div class="toggle-switch"><input type="checkbox" id="gearVisible" name="gearVisible"><span class="toggle-slider"></span></div></label>
@@ -400,8 +551,32 @@
                         <label class="toggle-switch-label" for="reviewsVisible"><span>Community Reviews Section</span><div class="toggle-switch"><input type="checkbox" id="reviewsVisible" name="reviewsVisible"><span class="toggle-slider"></span></div></label>
                         <label class="toggle-switch-label" for="newsletterVisible"><span>Newsletter Signup Section</span><div class="toggle-switch"><input type="checkbox" id="newsletterVisible" name="newsletterVisible"><span class="toggle-slider"></span></div></label>
                         <label class="toggle-switch-label" for="contactVisible"><span>Contact Section</span><div class="toggle-switch"><input type="checkbox" id="contactVisible" name="contactVisible"><span class="toggle-slider"></span></div></label>
-                        <div class="pt-5"><button type="submit" class="btn btn-primary w-full"><i class="fas fa-save mr-2"></i>Save Visibility Settings</button></div>
+                        </form>
+                </div>
+
+                <div class="card">
+                    <form id="featured-products-form" class="space-y-5">
+                        <h3 class="text-xl font-medium mb-3 text-[var(--admin-accent-primary)]">Featured Product Display</h3>
+                        
+                        <div>
+                            <label class="form-label">Main Gear Section Products (Max 3)</label>
+                            <div id="featured-gear-checkbox-container" class="checkbox-list-container">
+                                <!-- Active product checkboxes will be injected here -->
+                            </div>
+                            <small class="text-xs text-[var(--admin-text-secondary)] mt-1 block">Select up to 3 Active products.</small>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Products to Display on Drop Event</label>
+                            <div id="featured-drop-checkbox-container" class="checkbox-list-container">
+                                <!-- Active product checkboxes for drop events will be injected here -->
+                            </div>
+                            <small class="text-xs text-[var(--admin-text-secondary)] mt-1 block">Select Active products to show when a countdown ends. This populates the "New Drop" section on the home page.</small>
+                        </div>
                     </form>
+                </div>
+                <div class="pt-6 text-center">
+                    <button id="save-customization-settings" type="button" class="btn btn-primary w-full md:w-auto"><i class="fas fa-save mr-2"></i>Save All Customization Settings</button>
                 </div>
             </section>
 
@@ -418,6 +593,7 @@
         </div>
     </main>
 
+    <!-- Order Detail Modal -->
     <div id="order-detail-modal-overlay" class="admin-modal-overlay">
         <div class="admin-modal-content">
             <div class="admin-modal-header">
@@ -467,6 +643,34 @@
         </div>
     </div>
 
+    <!-- NEW: Size Guide Editor Modal -->
+    <div id="size-guide-editor-modal-overlay" class="admin-modal-overlay">
+        <div id="size-guide-modal-content" class="admin-modal-content">
+            <div class="admin-modal-header">
+                <h3 class="admin-modal-title">Size Guide Editor</h3>
+                <button id="size-guide-editor-close-btn" class="admin-modal-close-btn">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <div class="size-guide-editor-controls">
+                    <button id="sg-add-row" class="btn btn-secondary btn-sm"><i class="fas fa-plus mr-2"></i>Add Row</button>
+                    <button id="sg-add-col" class="btn btn-secondary btn-sm"><i class="fas fa-plus mr-2"></i>Add Column</button>
+                    <p class="text-sm text-[var(--admin-text-secondary)] self-center">Click on any cell to edit its content.</p>
+                </div>
+                <div class="size-guide-editor-table-wrapper">
+                    <table id="size-guide-editor-table" class="size-guide-editor-table">
+                        <!-- Table content will be generated by JS -->
+                    </table>
+                </div>
+            </div>
+            <div class="admin-modal-footer">
+                <div class="flex justify-end gap-3">
+                    <button id="size-guide-cancel-btn" class="btn btn-secondary">Cancel</button>
+                    <button id="size-guide-save-btn" class="btn btn-primary"><i class="fas fa-save mr-2"></i>Save Guide</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         // Admin Panel Navigation
@@ -479,11 +683,26 @@
             const sectionToShow = document.getElementById(targetId);
             if (sectionToShow) {
                 sectionToShow.classList.remove('hidden');
+                // Load data for specific sections when they are shown
                 if (targetId === 'newsletter-admin-section') { 
                     loadNewsletterEmails();
                 }
-                if (targetId === 'stories-admin-section') { // Load stories when section is shown
+                if (targetId === 'stories-admin-section') { 
                     initializeStorySlots();
+                }
+                if (targetId === 'drops-section') { 
+                    populateDropActivationProductSelector(); 
+                    loadCurrentCountdownSettings();
+                }
+                if (targetId === 'sections-section') {
+                    loadSectionVisibilitySettings(); 
+                    populateFeaturedProductSelectors();
+                }
+                if (targetId === 'reviews-admin-section') {
+                    renderReviewsTable();
+                }
+                if (targetId === 'messages-admin-section') {
+                    renderMessagesTable();
                 }
             }
             const activeLink = document.querySelector(`.nav-link[data-target="${targetId}"]`);
@@ -493,7 +712,6 @@
         adminNavLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 if (link.id === 'admin-logout-button') {
-                    console.log("Logout clicked, allowing default navigation to index.html");
                     return; 
                 }
                 e.preventDefault();
@@ -506,21 +724,283 @@
             });
         });
         
-        const initialAdminActiveLinkFromLoad = document.querySelector('.sidebar .nav-link.active');
-        if (initialAdminActiveLinkFromLoad && initialAdminActiveLinkFromLoad.getAttribute('data-target')) {
-             showAdminSection(initialAdminActiveLinkFromLoad.getAttribute('data-target'));
-        } else if (adminNavLinks.length > 0 && adminNavLinks[0].getAttribute('data-target')) {
-            adminNavLinks[0].classList.add('active'); 
-            showAdminSection(adminNavLinks[0].getAttribute('data-target'));
+        function printShippingInfo(orderId) {
+            const order = getOrders().find(o => o.id === orderId);
+            if (!order) {
+                alert('Order not found!');
+                return;
+            }
+
+            let itemsHtml = '<p>No items information available.</p>';
+            if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+                itemsHtml = '<ul>';
+                order.items.forEach(item => {
+                    itemsHtml += `<li>${item.name} (Qty: ${item.quantity}, Size: ${item.selectedSize || 'N/A'}, Color: ${item.selectedColor || 'N/A'})</li>`;
+                });
+                itemsHtml += '</ul>';
+            } else if (order.items && typeof order.items === 'object' && !Array.isArray(order.items)) {
+                 // Fallback for potentially different items structure if any - this was seen in some order objects
+                itemsHtml = '<ul>';
+                for (const key in order.items) { // Assuming items is an object where each key is an item ID or similar
+                    if (order.items.hasOwnProperty(key)) {
+                        const item = order.items[key];
+                        // Attempt to access common properties, providing defaults
+                        const itemName = item.name || key;
+                        const itemQty = item.quantity || 1;
+                        const itemSize = item.selectedSize || item.size || 'N/A';
+                        const itemColor = item.selectedColor || item.color || 'N/A';
+                        itemsHtml += `<li>${itemName} (Qty: ${itemQty}, Size: ${itemSize}, Color: ${itemColor})</li>`;
+                    }
+                }
+                itemsHtml += '</ul>';
+            }
+
+
+            const printWindow = window.open('', '_blank', 'height=700,width=800');
+            printWindow.document.write('<html><head><title>Print Shipping Label - Order ' + order.id + '</title>');
+            printWindow.document.write(`
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .label-container { 
+                        border: 1px solid #ddd; 
+                        padding: 20px; 
+                        width: 90%; 
+                        max-width: 750px; 
+                        margin: 20px auto; 
+                        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                        background: #fff;
+                    }
+                    .header-section { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 15px; }
+                    .logo { font-weight: bold; font-size: 28px; color: #333; }
+                    .order-id-main { text-align: right; font-size: 14px; color: #555; }
+                    .order-id-main strong { font-size: 16px; color: #000; }
+                    .section { margin-bottom: 20px; padding-bottom:15px; border-bottom: 1px dashed #ccc; }
+                    .section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0;}
+                    .section h2 { 
+                        font-size: 16px; 
+                        font-weight: 600; 
+                        color: #444; 
+                        margin-top: 0; 
+                        margin-bottom: 10px; 
+                        border-bottom: 1px solid #eee; 
+                        padding-bottom: 5px;
+                    }
+                    .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 5px 10px; }
+                    .info-grid p { margin: 2px 0; font-size: 14px; }
+                    .info-grid strong { font-weight: 600; color: #333; }
+                    .address { white-space: pre-line; } /* To respect newlines in address */
+                    .items-ordered ul { list-style-type: none; padding-left: 0; margin-top: 5px; }
+                    .items-ordered li { font-size: 13px; padding: 4px 0; border-bottom: 1px dotted #eee; }
+                    .items-ordered li:last-child { border-bottom: none; }
+                    .footer-note { text-align: center; font-size: 12px; color: #777; margin-top: 25px; }
+                    .print-button-container { text-align: center; margin-top: 20px; }
+                    .print-button { padding: 10px 20px; font-size: 16px; background-color: var(--admin-accent-primary, #8B5CF6); color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }
+                    .print-button:hover { background-color: #7C3AED; }
+
+                    @media print {
+                        body { margin: 0; padding: 0; background: #fff; }
+                        .label-container { border: none; box-shadow: none; width: 100%; max-width: 100%; margin: 0; padding: 10px; }
+                        .print-button-container { display: none; }
+                        .footer-note { display: none; }
+                    }
+                </style>
+            `);
+            printWindow.document.write('</head><body>');
+            printWindow.document.write('<div class="label-container">');
+            
+            printWindow.document.write('<div class="header-section">');
+            printWindow.document.write('  <div class="logo"><strong>TRIUMIND</strong></div>');
+            printWindow.document.write(`  <div class="order-id-main">Order Date: ${new Date(order.timestamp).toLocaleDateString()}<br><strong>ID: ${order.id}</strong></div>`);
+            printWindow.document.write('</div>');
+
+            printWindow.document.write('<div class="section">');
+            printWindow.document.write('  <h2>Recipient</h2>');
+            printWindow.document.write('  <div class="info-grid">');
+            printWindow.document.write(`    <p><strong>Name:</strong></p> <p>${order.customerName || 'N/A'}</p>`);
+            printWindow.document.write(`    <p><strong>Email:</strong></p> <p>${order.customerEmail || 'N/A'}</p>`);
+            printWindow.document.write(`    <p><strong>Phone:</strong></p> <p>${order.customerPhone || 'N/A'}</p>`);
+            printWindow.document.write(`    <p><strong>Address:</strong></p> <p class="address">${order.customerAddress || 'N/A'}</p>`);
+            printWindow.document.write('  </div>');
+            printWindow.document.write('</div>');
+
+            printWindow.document.write('<div class="section">');
+            printWindow.document.write('  <h2>Order Summary</h2>');
+            printWindow.document.write('  <div class="info-grid">');
+            printWindow.document.write(`    <p><strong>Order Total:</strong></p> <p>$${parseFloat(order.totalAmount || 0).toFixed(2)}</p>`);
+            printWindow.document.write('  </div>');
+            printWindow.document.write('</div>');
+
+            printWindow.document.write('<div class="section items-ordered">');
+            printWindow.document.write('  <h2>Items Ordered</h2>');
+            printWindow.document.write(itemsHtml);
+            printWindow.document.write('</div>');
+            
+            printWindow.document.write('<div class="footer-note">Thank you for your order! - TRIUMIND Systems</div>');
+            printWindow.document.write('</div>'); // end label-container
+
+            printWindow.document.write('<div class="print-button-container"><button class="print-button" onclick="window.print();">Print Label</button></div>');
+            // Auto-print and close with a slight delay to ensure content is rendered.
+            // Using a separate script tag for the timeout logic can be more reliable.
+            printWindow.document.write('<script>document.addEventListener("DOMContentLoaded", function() { setTimeout(function() { try { window.print(); } catch(e) { console.error("Print failed:", e); } setTimeout(function() { try { window.close(); } catch(e) { console.error("Close failed:", e); } }, 200); }, 500); });</scrip'+'t>');
+            printWindow.document.write('</body></html>');
+            printWindow.document.close(); // Important for some browsers to finish loading
         }
 
-        // Section Visibility Logic
+        // --- Messages Management ---
+        const messagesTableBody = document.getElementById('messages-table-body');
+        const noMessagesAdminMessage = document.getElementById('no-messages-admin-message');
+
+        function getMessages() {
+            return JSON.parse(localStorage.getItem('triumindContactMessages')) || [];
+        }
+
+        function saveMessages(messages) {
+            localStorage.setItem('triumindContactMessages', JSON.stringify(messages));
+            renderMessagesTable(); // Re-render after saving
+        }
+
+        function renderMessagesTable() {
+            if (!messagesTableBody) return;
+            messagesTableBody.innerHTML = '';
+            const messages = getMessages();
+
+            if (messages.length === 0) {
+                if (noMessagesAdminMessage) noMessagesAdminMessage.classList.remove('hidden');
+                return;
+            }
+            if (noMessagesAdminMessage) noMessagesAdminMessage.classList.add('hidden');
+
+            messages.forEach(msg => {
+                const row = messagesTableBody.insertRow();
+                const timestamp = new Date(msg.timestamp).toLocaleString();
+                row.innerHTML = `
+                    <td class="text-sm">${timestamp}</td>
+                    <td><a href="mailto:${msg.email}" class="text-purple-400 hover:underline">${msg.email}</a></td>
+                    <td class="text-sm max-w-md whitespace-pre-wrap">${msg.message}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm delete-message-btn" data-message-id="${msg.id}"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+            });
+
+            document.querySelectorAll('.delete-message-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const messageId = this.dataset.messageId;
+                    deleteMessage(messageId);
+                });
+            });
+        }
+        
+        function deleteMessage(messageId) {
+             if (!confirm('Are you sure you want to delete this message?')) return;
+             let messages = getMessages();
+             messages = messages.filter(msg => msg.id !== messageId);
+             saveMessages(messages);
+        }
+        
+        // --- Review Management ---
+        const reviewsTableBody = document.getElementById('reviews-table-body');
+        const noReviewsAdminMessage = document.getElementById('no-reviews-admin-message');
+
+        function getReviews() {
+            return JSON.parse(localStorage.getItem('triumindProductReviews')) || {};
+        }
+
+        function saveReviews(reviews) {
+            localStorage.setItem('triumindProductReviews', JSON.stringify(reviews));
+            renderReviewsTable();
+        }
+
+        function renderReviewsTable() {
+            if (!reviewsTableBody) return;
+            reviewsTableBody.innerHTML = '';
+            const allReviewsObject = getReviews();
+            const allReviewsFlat = Object.values(allReviewsObject).flat();
+
+            if (allReviewsFlat.length === 0) {
+                if(noReviewsAdminMessage) noReviewsAdminMessage.classList.remove('hidden');
+                return;
+            }
+            if(noReviewsAdminMessage) noReviewsAdminMessage.classList.add('hidden');
+
+            allReviewsFlat.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            allReviewsFlat.forEach(review => {
+                const row = reviewsTableBody.insertRow();
+                const ratingStars = '<span class="review-stars">' + '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating) + '</span>';
+
+                row.innerHTML = `
+                    <td>${review.name}</td>
+                    <td>${ratingStars}</td>
+                    <td class="text-sm max-w-xs truncate" title="${review.text}">${review.text}</td>
+                    <td>${review.productName}</td>
+                    <td>
+                        <label class="toggle-switch">
+                            <input type="checkbox" class="feature-review-toggle" data-review-id="${review.id}" data-product-id="${review.productId}" ${review.isFeatured ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </td>
+                    <td>
+                        <button class="btn btn-danger btn-sm delete-review-btn" data-review-id="${review.id}" data-product-id="${review.productId}"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+            });
+
+            document.querySelectorAll('.delete-review-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const reviewId = this.dataset.reviewId;
+                    const productId = this.dataset.productId;
+                    deleteReview(productId, reviewId);
+                });
+            });
+
+            document.querySelectorAll('.feature-review-toggle').forEach(toggle => {
+                toggle.addEventListener('change', function() {
+                    const reviewId = this.dataset.reviewId;
+                    const productId = this.dataset.productId;
+                    const isFeatured = this.checked;
+                    toggleFeaturedStatus(productId, reviewId, isFeatured);
+                });
+            });
+        }
+
+        function deleteReview(productId, reviewId) {
+            if (!confirm('Are you sure you want to delete this review?')) return;
+
+            const allReviews = getReviews();
+            if (allReviews[productId]) {
+                allReviews[productId] = allReviews[productId].filter(review => review.id !== reviewId);
+                if (allReviews[productId].length === 0) {
+                    delete allReviews[productId];
+                }
+                saveReviews(allReviews);
+            }
+        }
+        
+        function toggleFeaturedStatus(productId, reviewId, isFeatured) {
+            const allReviews = getReviews();
+            if (allReviews[productId]) {
+                const reviewIndex = allReviews[productId].findIndex(review => review.id === reviewId);
+                if (reviewIndex > -1) {
+                    allReviews[productId][reviewIndex].isFeatured = isFeatured;
+                    saveReviews(allReviews);
+                }
+            }
+        }
+
+
+        // --- Section Customization Logic (Visibility & Featured Products) ---
         const sectionVisibilityForm = document.getElementById('section-visibility-form');
+        const saveCustomizationSettingsButton = document.getElementById('save-customization-settings');
+
         const sectionToggles = {
             countdownVisible: document.getElementById('countdownVisible'), gearVisible: document.getElementById('gearVisible'),
             storiesVisible: document.getElementById('storiesVisible'), reviewsVisible: document.getElementById('reviewsVisible'),
             newsletterVisible: document.getElementById('newsletterVisible'), contactVisible: document.getElementById('contactVisible'),
         };
+        const featuredGearCheckboxContainer = document.getElementById('featured-gear-checkbox-container');
+        const featuredDropCheckboxContainer = document.getElementById('featured-drop-checkbox-container');
+
         function loadSectionVisibilitySettings() {
             const settings = JSON.parse(localStorage.getItem('triumindSectionVisibility')) || {};
             for (const key in sectionToggles) { 
@@ -529,108 +1009,218 @@
                 } 
             }
         }
-        if (sectionVisibilityForm) {
-            sectionVisibilityForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const newSettings = {};
-                for (const key in sectionToggles) { if (sectionToggles[key]) { newSettings[key] = sectionToggles[key].checked; } }
-                localStorage.setItem('triumindSectionVisibility', JSON.stringify(newSettings));
+        
+        function populateFeaturedProductSelectors() {
+            const products = getProducts().filter(p => p.status === 'Active');
+            const featuredSettings = JSON.parse(localStorage.getItem('triumindFeaturedProducts')) || {};
+            const gearProductIds = featuredSettings.gearSectionProductIds || [];
+            const dropProductIds = featuredSettings.dropSectionProductIds || [];
+            
+            [featuredGearCheckboxContainer, featuredDropCheckboxContainer].forEach((container) => {
+                if (!container) return;
+                container.innerHTML = '';
+                if (products.length === 0) {
+                    container.innerHTML = '<p class="text-[var(--admin-text-secondary)] text-sm p-2">No active products available.</p>';
+                    return;
+                }
+
+                let selectedIds = [];
+                if (container.id === 'featured-gear-checkbox-container') {
+                    selectedIds = gearProductIds;
+                } else if (container.id === 'featured-drop-checkbox-container') {
+                    selectedIds = dropProductIds;
+                }
+
+                products.forEach(product => {
+                    const checkboxId = `featured-${container.id}-${product.id}`;
+                    const label = document.createElement('label');
+                    label.htmlFor = checkboxId;
+                    label.className = 'form-checkbox-label';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = checkboxId;
+                    checkbox.value = product.id;
+                    checkbox.className = 'form-checkbox-input';
+                    if (selectedIds.includes(product.id)) {
+                        checkbox.checked = true;
+                    }
+                    
+                    const span = document.createElement('span');
+                    span.textContent = product.name;
+
+                    label.appendChild(checkbox);
+                    label.appendChild(span);
+                    container.appendChild(label);
+                });
+            });
+        }
+
+        if (saveCustomizationSettingsButton) {
+            saveCustomizationSettingsButton.addEventListener('click', function() {
+                // Save visibility settings
+                const newVisibilitySettings = {};
+                for (const key in sectionToggles) { 
+                    if (sectionToggles[key]) { 
+                        newVisibilitySettings[key] = sectionToggles[key].checked; 
+                    } 
+                }
+                localStorage.setItem('triumindSectionVisibility', JSON.stringify(newVisibilitySettings));
+
+                // Save featured product settings
+                const selectedGearProductIds = Array.from(featuredGearCheckboxContainer.querySelectorAll('input:checked')).map(cb => cb.value);
+                const selectedDropProductIds = Array.from(featuredDropCheckboxContainer.querySelectorAll('input:checked')).map(cb => cb.value);
+
+                if (selectedGearProductIds.length > 3) {
+                    const errorMsgEl = document.createElement('p');
+                    errorMsgEl.textContent = 'Max 3 products allowed for Main Gear Section.';
+                    errorMsgEl.className = 'text-red-400 text-sm mt-2 text-center';
+                    saveCustomizationSettingsButton.parentNode.insertBefore(errorMsgEl, saveCustomizationSettingsButton);
+                    setTimeout(() => errorMsgEl.remove(), 4000);
+                    return;
+                }
+
+                const newFeaturedSettings = {
+                    gearSectionProductIds: selectedGearProductIds.slice(0, 3),
+                    dropSectionProductIds: selectedDropProductIds
+                };
+                localStorage.setItem('triumindFeaturedProducts', JSON.stringify(newFeaturedSettings));
+                
                 const successMsg = document.createElement('p');
-                successMsg.textContent = 'Visibility settings saved! Refresh main site.';
-                successMsg.className = 'text-green-400 text-sm mt-2';
-                sectionVisibilityForm.appendChild(successMsg);
+                successMsg.textContent = 'All customization settings saved! Refresh main site.';
+                successMsg.className = 'text-green-400 text-sm mt-2 text-center';
+                saveCustomizationSettingsButton.parentNode.insertBefore(successMsg, saveCustomizationSettingsButton);
                 setTimeout(() => successMsg.remove(), 3000);
             });
         }
 
 
-        // Countdown Logic
+        // START: Reworked Countdown Logic
         const adminDropForm = document.getElementById('adminDropForm');
-        if (adminDropForm) {
-            const adminDropDateInput = document.getElementById('drop-date');
-            const adminDropTimeInput = document.getElementById('drop-time');
-            const adminCurrentCountdownDisplay = document.getElementById('current-countdown-display');
-            
-            const savedSettings = JSON.parse(localStorage.getItem('triumindCountdownSettings')) || {};
-            if (savedSettings.target && adminDropDateInput && adminDropTimeInput && adminCurrentCountdownDisplay) {
-                const savedDate = new Date(parseInt(savedSettings.target));
-                if (!isNaN(savedDate.getTime())) { 
-                    adminDropDateInput.value = savedDate.toISOString().split('T')[0];
-                    adminDropTimeInput.value = savedDate.toTimeString().split(' ')[0].substring(0,5);
-                    adminCurrentCountdownDisplay.textContent = `T-Minus: ${savedDate.toLocaleString()} (Mode: ${savedSettings.mode || 'section'})`;
-                } else {
-                    console.error("Invalid saved date for countdown from localStorage");
-                    if(adminCurrentCountdownDisplay) adminCurrentCountdownDisplay.textContent = "T-Minus: Error Loading Saved Date (Mode: " + (savedSettings.mode || 'section') + ")";
-                }
+        const adminCurrentCountdownDisplay = document.getElementById('current-countdown-display');
+        const dropFormFeedback = document.getElementById('drop-form-feedback');
+
+        function populateDropActivationProductSelector() {
+            const checkboxContainer = document.getElementById('drop-activation-products-checkbox-container');
+            if (!checkboxContainer) return;
+            checkboxContainer.innerHTML = '';
+            const products = getProducts();
+            const draftProducts = products.filter(p => p.status === 'Draft');
+
+            if (draftProducts.length === 0) {
+                checkboxContainer.innerHTML = '<p class="text-[var(--admin-text-secondary)] text-sm p-2">No DRAFT products available to attach.</p>';
+                return;
             }
-            const modeRadio = adminDropForm.querySelector(`input[name="countdownMode"][value="${savedSettings.mode || 'section'}"]`);
-            if (modeRadio) modeRadio.checked = true;
-            
-            adminDropForm.addEventListener('submit', function(e) {
-                e.preventDefault(); 
-                 if (!adminDropDateInput || !adminDropTimeInput) {
-                    console.error("Date or Time input elements not found in adminDropForm.");
-                    const errorMsg = document.createElement('p');
-                    errorMsg.textContent = "Error: Date/Time inputs missing.";
-                    errorMsg.className = 'text-red-400 text-sm mt-2';
-                    adminDropForm.appendChild(errorMsg);
-                    setTimeout(() => errorMsg.remove(), 3000);
-                    return;
-                }
-                const dateVal = adminDropDateInput.value; 
-                const timeVal = adminDropTimeInput.value;
-                
-                const checkedRadio = adminDropForm.querySelector('input[name="countdownMode"]:checked');
-                if (!checkedRadio) {
-                    console.error("No countdown mode selected.");
-                    const errorMsg = document.createElement('p');
-                    errorMsg.textContent = "Error: No countdown mode selected.";
-                    errorMsg.className = 'text-red-400 text-sm mt-2';
-                    adminDropForm.appendChild(errorMsg);
-                    setTimeout(() => errorMsg.remove(), 3000);
-                    return;
-                }
-                const selectedMode = checkedRadio.value;
 
-                if (dateVal && timeVal) {
-                    const targetDateTime = new Date(`${dateVal}T${timeVal}`);
-                    if (isNaN(targetDateTime.getTime())) {
-                        console.error("Invalid Date/Time selected for countdown.");
-                        const errorMsg = document.createElement('p');
-                        errorMsg.textContent = "Error: Invalid Date or Time selected.";
-                        errorMsg.className = 'text-red-400 text-sm mt-2';
-                        adminDropForm.appendChild(errorMsg);
-                        setTimeout(() => errorMsg.remove(), 3000);
-                        return;
-                    }
-                    
-                    const newCountdownSettings = {
-                        target: targetDateTime.getTime().toString(),
-                        mode: selectedMode,
-                        productIds: [] 
-                    };
-                    localStorage.setItem('triumindCountdownSettings', JSON.stringify(newCountdownSettings));
-                    
-                    if(adminCurrentCountdownDisplay) adminCurrentCountdownDisplay.textContent = `T-Minus: ${targetDateTime.toLocaleString()} (Mode: ${selectedMode.charAt(0).toUpperCase() + selectedMode.slice(1)})`;
-                    
-                    const successMsg = document.createElement('p');
-                    successMsg.textContent = 'Countdown Synchronized! Refresh main site.';
-                    successMsg.className = 'text-green-400 text-sm mt-2';
-                    adminDropForm.appendChild(successMsg);
-                    setTimeout(() => successMsg.remove(), 3000);
+            const savedSettings = JSON.parse(localStorage.getItem('triumindCountdownSettings')) || {};
+            const selectedIds = savedSettings.productIdsForActivation || [];
 
-                } else {
-                    console.error("Date or Time not provided for countdown.");
-                     const errorMsg = document.createElement('p');
-                    errorMsg.textContent = "Error: Date or Time not provided.";
-                    errorMsg.className = 'text-red-400 text-sm mt-2';
-                    adminDropForm.appendChild(errorMsg);
-                    setTimeout(() => errorMsg.remove(), 3000);
+            draftProducts.forEach(product => {
+                const checkboxId = `drop-product-${product.id}`;
+                const label = document.createElement('label');
+                label.htmlFor = checkboxId;
+                label.className = 'form-checkbox-label';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = checkboxId;
+                checkbox.value = product.id;
+                checkbox.className = 'form-checkbox-input';
+                if (selectedIds.includes(product.id)) {
+                    checkbox.checked = true;
                 }
+
+                const span = document.createElement('span');
+                span.textContent = `${product.name} (Draft)`;
+
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                checkboxContainer.appendChild(label);
             });
-        } else {
-            console.warn("Admin Drop Form not found.");
         }
+        
+        function loadCurrentCountdownSettings() {
+             const savedSettings = JSON.parse(localStorage.getItem('triumindCountdownSettings')) || {};
+             const alsoFeatureCheckbox = document.getElementById('also-feature-in-gear');
+
+             if (savedSettings.target && adminCurrentCountdownDisplay) {
+                const savedDate = new Date(parseInt(savedSettings.target));
+                if (!isNaN(savedDate.getTime()) && savedDate.getTime() > Date.now()) { 
+                    const mode = (savedSettings.mode || 'section').replace(/^\w/, c => c.toUpperCase());
+                    adminCurrentCountdownDisplay.textContent = `T-Minus: ${savedDate.toLocaleString()} (Mode: ${mode})`;
+                    const modeRadio = adminDropForm.querySelector(`input[name="countdownMode"][value="${savedSettings.mode || 'section'}"]`);
+                    if (modeRadio) modeRadio.checked = true;
+                    if (alsoFeatureCheckbox) {
+                        alsoFeatureCheckbox.checked = savedSettings.alsoFeatureInGear === true;
+                    }
+                } else {
+                     adminCurrentCountdownDisplay.textContent = "T-Minus: Not Set or Expired";
+                     localStorage.removeItem('triumindCountdownSettings'); 
+                }
+            } else {
+                 adminCurrentCountdownDisplay.textContent = "T-Minus: Not Set";
+                 if (alsoFeatureCheckbox) alsoFeatureCheckbox.checked = false;
+            }
+        }
+
+
+        if (adminDropForm) {
+            adminDropForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const adminDropDateInput = document.getElementById('drop-date');
+                const adminDropTimeInput = document.getElementById('drop-time');
+                const alsoFeatureCheckbox = document.getElementById('also-feature-in-gear');
+                
+                const selectedProductIdsForActivation = Array.from(document.querySelectorAll('#drop-activation-products-checkbox-container input[type="checkbox"]:checked'))
+                                                          .map(checkbox => checkbox.value);
+
+                let isValid = true;
+                let feedback = '';
+
+                if (!adminDropDateInput.value || !adminDropTimeInput.value) {
+                    feedback = 'Please set a valid date and time.';
+                    isValid = false;
+                } else if (selectedProductIdsForActivation.length === 0) {
+                    feedback = 'You must select at least one DRAFT product to activate for the drop.';
+                    isValid = false;
+                }
+
+                if (!isValid) {
+                    dropFormFeedback.textContent = feedback;
+                    dropFormFeedback.classList.remove('hidden');
+                    return;
+                }
+                
+                dropFormFeedback.classList.add('hidden');
+
+                const targetDateTime = new Date(`${adminDropDateInput.value}T${adminDropTimeInput.value}:00Z`); // Assume UTC
+                if (isNaN(targetDateTime.getTime()) || targetDateTime.getTime() <= Date.now()) {
+                    dropFormFeedback.textContent = 'Please select a date and time in the future.';
+                    dropFormFeedback.classList.remove('hidden');
+                    return;
+                }
+
+                const checkedRadio = adminDropForm.querySelector('input[name="countdownMode"]:checked');
+                const selectedMode = checkedRadio ? checkedRadio.value : 'section';
+
+                const newCountdownSettings = {
+                    target: targetDateTime.getTime().toString(),
+                    mode: selectedMode,
+                    productIdsForActivation: selectedProductIdsForActivation,
+                    alsoFeatureInGear: alsoFeatureCheckbox ? alsoFeatureCheckbox.checked : false 
+                };
+
+                localStorage.setItem('triumindCountdownSettings', JSON.stringify(newCountdownSettings));
+                
+                loadCurrentCountdownSettings();
+
+                dropFormFeedback.textContent = 'Countdown Synchronized! Refresh main site to see changes.';
+                dropFormFeedback.className = 'text-green-400 text-sm';
+                dropFormFeedback.classList.remove('hidden');
+                setTimeout(() => dropFormFeedback.classList.add('hidden'), 4000);
+            });
+        }
+        // END: Reworked Countdown Logic
 
         // Product Management Logic
         const productForm = document.getElementById('product-form');
@@ -648,9 +1238,14 @@
         const imagePreviewGrid = document.getElementById('image-preview-grid');
         const imageUploadTrigger = document.getElementById('image-upload-trigger');
         let currentProductImages = []; 
+        let currentSizeGuideData = null;
         
         const productSizesInput = document.getElementById('product-sizes');
-        const productColorsInput = document.getElementById('product-colors');
+        // const productColorsInput = document.getElementById('product-colors'); // Old input, removed from HTML
+
+        // NEW: Color Management Elements
+        const productColorsListEditor = document.getElementById('product-colors-list-editor');
+        const addProductColorBtn = document.getElementById('add-product-color-btn');
         
         if (imageUploadTrigger && productImagesInput) { 
             imageUploadTrigger.addEventListener('click', () => productImagesInput.click()); 
@@ -661,29 +1256,97 @@
         function saveProducts(products) { 
             try { 
                 localStorage.setItem('triumindProducts', JSON.stringify(products)); 
+                populateDropActivationProductSelector(); 
+                populateFeaturedProductSelectors();
             } catch (e) { 
                 console.error("Error saving products to localStorage:", e); 
-                const errorMsgEl = document.createElement('p');
-                errorMsgEl.textContent = 'Error saving products. Storage might be full.';
-                errorMsgEl.className = 'text-red-400 text-sm mt-2';
-                if (productForm && productForm.parentNode) {
-                    productForm.parentNode.insertBefore(errorMsgEl, productForm.nextSibling);
-                    setTimeout(() => errorMsgEl.remove(), 5000);
-                }
             } 
         }
         
         function resetProductForm() {
             if (productForm) productForm.reset();
             currentProductImages = [];
+            currentSizeGuideData = null; // NEW: Reset size guide data
+            updateSizeGuideStatus();
             renderImagePreviews();
             if (editingProductIdInput) editingProductIdInput.value = ''; 
             if (productFormTitle) productFormTitle.textContent = 'New Product Deployment';
             if (productFormSubmitBtn) productFormSubmitBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Confirm Deployment';
             if (toggleAddProductFormButton) toggleAddProductFormButton.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Deploy New Unit';
             if (productSizesInput) productSizesInput.value = ''; 
-            if (productColorsInput) productColorsInput.value = ''; 
+            renderColorEntries([]); // NEW: Clear dynamic color fields
         }
+
+        // NEW: Function to create a single color entry row
+        function createColorEntryRow(color = { name: '', hex: '' }) {
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'flex items-center space-x-2 product-color-entry';
+
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'form-input product-color-name flex-grow';
+            nameInput.placeholder = 'Color Name (e.g., Midnight Black)';
+            nameInput.value = color.name;
+
+            const hexInput = document.createElement('input');
+            hexInput.type = 'text'; // Keep as text for manual # input
+            hexInput.className = 'form-input product-color-hex w-32'; // Fixed width for hex
+            hexInput.placeholder = '#RRGGBB';
+            hexInput.value = color.hex;
+            hexInput.pattern = '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'; // Basic hex pattern
+
+            // Optional: Add a color picker input for convenience, visually hidden but linked
+            const colorPicker = document.createElement('input');
+            colorPicker.type = 'color';
+            colorPicker.className = 'product-color-picker w-8 h-8 p-0 border-none cursor-pointer'; // Small clickable swatch
+            colorPicker.value = color.hex || '#000000'; // Default to black if no hex
+            colorPicker.addEventListener('input', (e) => {
+                hexInput.value = e.target.value.toUpperCase();
+            });
+            hexInput.addEventListener('input', (e) => { // Sync picker if text hex changes
+                 if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(e.target.value)) {
+                    colorPicker.value = e.target.value;
+                 }
+            });
+
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.innerHTML = '<i class="fas fa-trash text-red-500"></i>';
+            removeBtn.className = 'btn-icon remove-color-entry-btn p-2'; // Adjust styling as needed
+            removeBtn.title = 'Remove Color';
+            removeBtn.addEventListener('click', () => {
+                entryDiv.remove();
+            });
+
+            entryDiv.appendChild(nameInput);
+            entryDiv.appendChild(hexInput);
+            entryDiv.appendChild(colorPicker);
+            entryDiv.appendChild(removeBtn);
+            return entryDiv;
+        }
+
+        // NEW: Function to render all color entries
+        function renderColorEntries(colorsArray = []) {
+            if (!productColorsListEditor) return;
+            productColorsListEditor.innerHTML = ''; // Clear existing entries
+            if (colorsArray && colorsArray.length > 0) {
+                colorsArray.forEach(color => {
+                    productColorsListEditor.appendChild(createColorEntryRow(color));
+                });
+            } else {
+                // Optionally add one empty row if there are no colors to start
+                // productColorsListEditor.appendChild(createColorEntryRow());
+            }
+        }
+
+        // NEW: Event listener for "Add Color" button
+        if (addProductColorBtn && productColorsListEditor) {
+            addProductColorBtn.addEventListener('click', () => {
+                productColorsListEditor.appendChild(createColorEntryRow());
+            });
+        }
+
 
         if (toggleAddProductFormButton && addProductFormContainer) {
             toggleAddProductFormButton.addEventListener('click', () => {
@@ -710,24 +1373,10 @@
             const files = event.target.files; if (!files) return;
             const maxImages = 5;
             if (currentProductImages.length + files.length > maxImages) { 
-                const errorMsgEl = document.createElement('p');
-                errorMsgEl.textContent = `Cannot upload more than ${maxImages} images.`;
-                errorMsgEl.className = 'text-red-400 text-sm my-1';
-                if (imageUploadTrigger && imageUploadTrigger.parentNode) {
-                    imageUploadTrigger.parentNode.insertBefore(errorMsgEl, imageUploadTrigger.nextSibling);
-                    setTimeout(() => errorMsgEl.remove(), 3000);
-                }
                 return; 
             }
             Array.from(files).forEach(file => {
                 if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) { 
-                    const errorMsgEl = document.createElement('p');
-                    errorMsgEl.textContent = `File type ${file.type} not supported for ${file.name}.`;
-                    errorMsgEl.className = 'text-red-400 text-sm my-1';
-                     if (imageUploadTrigger && imageUploadTrigger.parentNode) {
-                        imageUploadTrigger.parentNode.insertBefore(errorMsgEl, imageUploadTrigger.nextSibling);
-                        setTimeout(() => errorMsgEl.remove(), 3000);
-                    }
                     return; 
                 }
                 const reader = new FileReader();
@@ -777,7 +1426,6 @@
             currentProductImages = currentProductImages.filter(img => img.id !== imageId);
             if (currentProductImages.length > 0 && !currentProductImages.some(img => img.isPrimary)) {
                 currentProductImages[0].isPrimary = true; 
-            } else if (currentProductImages.length === 0) {
             }
             renderImagePreviews();
         }
@@ -805,7 +1453,6 @@
             const products = getProducts();
             const productToEdit = products.find(p => p.id === productId);
             if (!productToEdit) {
-                console.error("Product to edit not found:", productId);
                 resetProductForm(); 
                 return;
             }
@@ -823,13 +1470,16 @@
             } else if (productSizesInput) {
                 productSizesInput.value = '';
             }
-            if (productColorsInput && productToEdit.colors && Array.isArray(productToEdit.colors)) {
-                productColorsInput.value = productToEdit.colors.join(', ');
-            } else if (productColorsInput) {
-                productColorsInput.value = '';
+            // NEW: Populate color editor
+            if (productToEdit.colors && Array.isArray(productToEdit.colors)) {
+                renderColorEntries(productToEdit.colors);
+            } else {
+                renderColorEntries([]); // Clear if no colors or old format
             }
             
             currentProductImages = productToEdit.images ? [...productToEdit.images] : []; 
+            currentSizeGuideData = productToEdit.sizeGuideData || null; // NEW: Load size guide data
+            updateSizeGuideStatus(); // NEW: Update the status message
             renderImagePreviews();
 
             if (productFormTitle) productFormTitle.textContent = 'Edit Product Deployment';
@@ -885,25 +1535,32 @@
         }
 
         function deleteProduct(productId) {
+            if (!confirm('Are you sure you want to delete this product? This will also remove its reviews.')) return;
+            
+            // Delete product
             let products = getProducts();
             products = products.filter(p => p.id !== productId);
             saveProducts(products);
+
+            // FIXED BUG: Delete associated reviews
+            let allReviews = getReviews();
+            if (allReviews[productId]) {
+                delete allReviews[productId];
+                saveReviews(allReviews);
+            }
+            
             renderProductsTable();
+            if(!document.getElementById('reviews-admin-section').classList.contains('hidden')) {
+                renderReviewsTable(); // If reviews section is open, refresh it
+            }
             updateDashboardMetrics(); 
-            console.log(`Product unit ${productId} decommissioned.`);
         }
 
         if (productForm) {
              productForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                  if (currentProductImages.length === 0) { 
-                    const errorMsgEl = document.createElement('p');
-                    errorMsgEl.textContent = 'Please upload at least one image for the product.';
-                    errorMsgEl.className = 'text-red-400 text-sm my-1';
-                    if (imageUploadTrigger && imageUploadTrigger.parentNode) {
-                        imageUploadTrigger.parentNode.insertBefore(errorMsgEl, imageUploadTrigger.nextSibling);
-                        setTimeout(() => errorMsgEl.remove(), 3000);
-                    }
+                    alert("Please upload at least one product image."); // Using alert as a placeholder for better UI notification
                     return; 
                 }
                 if (currentProductImages.length > 0 && !currentProductImages.some(img => img.isPrimary)) { 
@@ -915,19 +1572,42 @@
                 const productStock = parseInt(document.getElementById('product-stock').value);
 
                 if (!productName || !productPrice || isNaN(productStock) || productStock < 0) { 
-                    const errorMsgEl = document.createElement('p');
-                    errorMsgEl.textContent = 'Please fill in all required fields (Name, Price, Stock) with valid values.';
-                    errorMsgEl.className = 'text-red-400 text-sm my-1';
-                    productForm.appendChild(errorMsgEl); 
-                    setTimeout(() => errorMsgEl.remove(), 4000);
+                    alert("Please fill all required product fields with valid data: Name, Price, Stock.");
                     return; 
                 }
 
                 const sizesString = productSizesInput ? productSizesInput.value : '';
-                const colorsString = productColorsInput ? productColorsInput.value : '';
-
                 const productSizesArray = sizesString.split(',').map(s => s.trim()).filter(s => s !== '');
-                const productColorsArray = colorsString.split(',').map(c => c.trim()).filter(c => c !== '');
+
+                // NEW: Collect color data from dynamic rows
+                const collectedColors = [];
+                const colorEntryRows = productColorsListEditor.querySelectorAll('.product-color-entry');
+                let colorsValid = true;
+                colorEntryRows.forEach(row => {
+                    const nameInput = row.querySelector('.product-color-name');
+                    const hexInput = row.querySelector('.product-color-hex');
+                    const name = nameInput ? nameInput.value.trim() : '';
+                    const hex = hexInput ? hexInput.value.trim().toUpperCase() : '';
+
+                    if (name && hex) {
+                        if (!/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex)) {
+                            alert(`Invalid hex code format for color "${name}": ${hex}. Please use #RRGGBB or #RGB.`);
+                            if(hexInput) hexInput.focus();
+                            colorsValid = false;
+                            return;
+                        }
+                        collectedColors.push({ name, hex });
+                    } else if (name || hex) { // If one is filled but not the other
+                        alert('Both Color Name and Hex Code must be filled for each color entry, or leave both blank to ignore the row.');
+                        if (!name && nameInput) nameInput.focus();
+                        else if (!hex && hexInput) hexInput.focus();
+                        colorsValid = false;
+                        return;
+                    }
+                    // If both are blank, the row is just ignored, not added to collectedColors
+                });
+
+                if (!colorsValid) return; // Stop submission if color validation failed
                                 
                 const editingId = editingProductIdInput ? editingProductIdInput.value : '';
                 let products = getProducts();
@@ -942,50 +1622,176 @@
                     status: document.getElementById('product-status').value,
                     images: [...currentProductImages],
                     sizes: productSizesArray, 
-                    colors: productColorsArray
+                    colors: collectedColors, // MODIFIED: Use new collected colors
+                    sizeGuideData: currentSizeGuideData
                 };
 
                 if (editingId) { 
                     const productIndex = products.findIndex(p => p.id === editingId);
                     if (productIndex > -1) {
-                        products[productIndex] = {
-                            ...products[productIndex], 
-                            ...productData 
-                        };
-                        delete products[productIndex].isNewDropItem; 
-                        successMessageText = 'Product updated successfully!';
-                    } else {
-                        console.error("Error: Product to edit not found in array.");
-                        successMessageText = 'Error: Could not update product.'; 
+                        products[productIndex] = { ...products[productIndex], ...productData };
                     }
                 } else { 
-                    const newProduct = {
-                        id: `TM-${Date.now()}`, 
-                        ...productData
-                    };
+                    const newProduct = { id: `TM-${Date.now()}`, ...productData };
                     products.push(newProduct);
-                    successMessageText = 'Product deployed successfully to local matrix!';
                 }
                 
                 saveProducts(products); 
                 renderProductsTable(); 
                 updateDashboardMetrics(); 
-                
                 resetProductForm(); 
                 if(addProductFormContainer) addProductFormContainer.classList.remove('open'); 
-                
-                const successMsg = document.createElement('p');
-                successMsg.textContent = successMessageText;
-                successMsg.className = 'text-green-400 text-sm mt-2';
-                if (addProductFormContainer.parentNode) { 
-                    const formParent = addProductFormContainer.parentNode;
-                    formParent.insertBefore(successMsg, addProductFormContainer.nextSibling); 
-                     setTimeout(() => { if (successMsg.parentNode) successMsg.remove(); }, 3000);
-                }
             });
         }
 
-        // --- Order Management Functions ---
+        // START: NEW Size Guide Editor Logic
+        const sizeGuideEditorOverlay = document.getElementById('size-guide-editor-modal-overlay');
+        const openSizeGuideEditorBtn = document.getElementById('open-size-guide-editor');
+        const closeSizeGuideEditorBtn = document.getElementById('size-guide-editor-close-btn');
+        const cancelSizeGuideEditorBtn = document.getElementById('size-guide-cancel-btn');
+        const saveSizeGuideBtn = document.getElementById('size-guide-save-btn');
+        const sizeGuideEditorTable = document.getElementById('size-guide-editor-table');
+        const addRowBtn = document.getElementById('sg-add-row');
+        const addColBtn = document.getElementById('sg-add-col');
+        const sizeGuideStatusEl = document.getElementById('size-guide-status');
+
+        function openSizeGuideEditor() {
+            if (sizeGuideEditorOverlay) sizeGuideEditorOverlay.classList.add('open');
+            renderSizeGuideEditor(currentSizeGuideData);
+        }
+
+        function closeSizeGuideEditor() {
+            if (sizeGuideEditorOverlay) sizeGuideEditorOverlay.classList.remove('open');
+        }
+
+        function updateSizeGuideStatus() {
+            if (sizeGuideStatusEl) {
+                if (currentSizeGuideData && currentSizeGuideData.headers.length > 0) {
+                    sizeGuideStatusEl.textContent = `Size guide attached (${currentSizeGuideData.rows.length} rows, ${currentSizeGuideData.headers.length} columns).`;
+                    sizeGuideStatusEl.style.color = '#22c55e'; // Green
+                } else {
+                    sizeGuideStatusEl.textContent = 'No size guide created for this product yet.';
+                    sizeGuideStatusEl.style.color = 'var(--admin-text-secondary)';
+                }
+            }
+        }
+
+        function renderSizeGuideEditor(data) {
+            const table = sizeGuideEditorTable;
+            if (!table) return;
+
+            // Default structure if no data exists
+            const guideData = data && data.headers && data.rows ? data : {
+                headers: ['Size', 'Chest (cm)'],
+                rows: [['S', '92-96'], ['M', '97-101']]
+            };
+
+            table.innerHTML = ''; // Clear previous content
+
+            // Create header
+            const thead = table.createTHead();
+            const headerRow = thead.insertRow();
+            guideData.headers.forEach((headerText, index) => {
+                const th = document.createElement('th');
+                th.setAttribute('contenteditable', 'true');
+                th.textContent = headerText;
+                th.innerHTML += `<button class="size-guide-remove-btn size-guide-remove-col-btn" data-col-index="${index}" title="Remove column">&times;</button>`;
+                headerRow.appendChild(th);
+            });
+
+            // Create body
+            const tbody = table.createTBody();
+            guideData.rows.forEach((rowData, rowIndex) => {
+                const row = tbody.insertRow();
+                rowData.forEach(cellData => {
+                    const cell = row.insertCell();
+                    cell.setAttribute('contenteditable', 'true');
+                    cell.textContent = cellData;
+                });
+                // Add remove button to the first cell of each data row
+                if (row.cells[0]) {
+                     row.cells[0].innerHTML += `<button class="size-guide-remove-btn size-guide-remove-row-btn" data-row-index="${rowIndex}" title="Remove row">&times;</button>`;
+                }
+            });
+        }
+        
+        function parseSizeGuideEditor() {
+            const table = sizeGuideEditorTable;
+            if (!table) return null;
+            
+            const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.replace('×','').trim());
+            const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr => 
+                Array.from(tr.querySelectorAll('td')).map(td => td.textContent.replace('×','').trim())
+            );
+
+            return { headers, rows };
+        }
+        
+        if (openSizeGuideEditorBtn) openSizeGuideEditorBtn.addEventListener('click', openSizeGuideEditor);
+        if (closeSizeGuideEditorBtn) closeSizeGuideEditorBtn.addEventListener('click', closeSizeGuideEditor);
+        if (cancelSizeGuideEditorBtn) cancelSizeGuideEditorBtn.addEventListener('click', closeSizeGuideEditor);
+
+        if (saveSizeGuideBtn) {
+            saveSizeGuideBtn.addEventListener('click', () => {
+                currentSizeGuideData = parseSizeGuideEditor();
+                updateSizeGuideStatus();
+                closeSizeGuideEditor();
+            });
+        }
+
+        if (addRowBtn) {
+            addRowBtn.addEventListener('click', () => {
+                const table = sizeGuideEditorTable;
+                if (!table) return;
+                const tbody = table.tBodies[0];
+                const newRow = tbody.insertRow();
+                const colCount = table.tHead.rows[0].cells.length;
+                for (let i = 0; i < colCount; i++) {
+                    const cell = newRow.insertCell();
+                    cell.setAttribute('contenteditable', 'true');
+                    cell.textContent = '...';
+                }
+                if (newRow.cells[0]) {
+                     newRow.cells[0].innerHTML += `<button class="size-guide-remove-btn size-guide-remove-row-btn" data-row-index="${tbody.rows.length - 1}" title="Remove row">&times;</button>`;
+                }
+            });
+        }
+        
+        if (addColBtn) {
+            addColBtn.addEventListener('click', () => {
+                const table = sizeGuideEditorTable;
+                if (!table) return;
+                const headerRow = table.tHead.rows[0];
+                const th = document.createElement('th');
+                th.setAttribute('contenteditable', 'true');
+                th.textContent = 'New Column';
+                th.innerHTML += `<button class="size-guide-remove-btn size-guide-remove-col-btn" data-col-index="${headerRow.cells.length}" title="Remove column">&times;</button>`;
+                headerRow.appendChild(th);
+
+                Array.from(table.tBodies[0].rows).forEach(row => {
+                    const cell = row.insertCell();
+                    cell.setAttribute('contenteditable', 'true');
+                    cell.textContent = '...';
+                });
+            });
+        }
+
+        if (sizeGuideEditorTable) {
+            sizeGuideEditorTable.addEventListener('click', function(e) {
+                if (e.target.classList.contains('size-guide-remove-col-btn')) {
+                    const colIndex = parseInt(e.target.dataset.colIndex, 10);
+                    Array.from(this.rows).forEach(row => row.deleteCell(colIndex));
+                }
+                if (e.target.classList.contains('size-guide-remove-row-btn')) {
+                     const rowIndex = parseInt(e.target.dataset.rowIndex, 10);
+                     this.tBodies[0].deleteRow(rowIndex);
+                }
+            });
+        }
+        // END: NEW Size Guide Editor Logic
+
+
+        // Order Management
         const orderDetailModalOverlay = document.getElementById('order-detail-modal-overlay');
         const orderDetailModalCloseBtn = document.getElementById('order-detail-modal-close-btn');
         const modalCustomerName = document.getElementById('modal-customer-name');
@@ -1002,22 +1808,13 @@
         let currentOrderFilter = 'All';
 
         function getOrders() {
-            try {
-                return JSON.parse(localStorage.getItem('triumindOrders')) || [];
-            } catch (e) {
-                console.error("Error parsing orders from localStorage:", e);
-                return [];
-            }
+            try { return JSON.parse(localStorage.getItem('triumindOrders')) || []; } 
+            catch (e) { console.error("Error parsing orders:", e); return []; }
         }
         function saveOrders(orders) {
-            try {
-                localStorage.setItem('triumindOrders', JSON.stringify(orders));
-            } catch (e) {
-                console.error("Error saving orders to localStorage:", e);
-            }
+            try { localStorage.setItem('triumindOrders', JSON.stringify(orders)); } 
+            catch (e) { console.error("Error saving orders:", e); }
         }
-
-
         function getStatusBadgeClass(status) {
             if (!status) return '';
             switch (status.toLowerCase()) {
@@ -1029,23 +1826,15 @@
                 default: return '';
             }
         }
-        
         function displayOrderDetailModal(orderId) {
-            const orders = getOrders();
-            const order = orders.find(o => o.id === orderId);
+            const order = getOrders().find(o => o.id === orderId);
             currentViewingOrderId = null; 
-
-            if (!order) {
-                console.error("Order not found for modal display:", orderId);
-                return;
-            }
+            if (!order) return;
             currentViewingOrderId = orderId; 
-
             if (modalCustomerName) modalCustomerName.textContent = order.customerName || 'N/A';
             if (modalCustomerEmail) modalCustomerEmail.textContent = order.customerEmail || 'N/A';
             if (modalCustomerPhone) modalCustomerPhone.textContent = order.customerPhone || 'N/A';
             if (modalCustomerAddress) modalCustomerAddress.textContent = order.customerAddress || 'N/A';
-            
             if (modalOrderId) modalOrderId.textContent = order.id;
             if (modalOrderDate) modalOrderDate.textContent = new Date(order.timestamp).toLocaleString();
             if (modalOrderTotal) modalOrderTotal.textContent = `$${parseFloat(order.totalAmount || 0).toFixed(2)}`;
@@ -1053,380 +1842,243 @@
                  modalOrderStatus.textContent = order.status;
                  modalOrderStatus.className = `status-badge ${getStatusBadgeClass(order.status)}`;
             }
-
-
             if (modalOrderItemsTableBody) {
                 modalOrderItemsTableBody.innerHTML = ''; 
                 if (order.items && Array.isArray(order.items)) {
                     order.items.forEach(item => {
                         const row = modalOrderItemsTableBody.insertRow();
-                        let optionsText = '';
-                        if (item.selectedSize) optionsText += `Size: ${item.selectedSize}<br>`;
-                        if (item.selectedColor) optionsText += `Color: ${item.selectedColor}`;
-                        
+                        let optionsText = (item.selectedSize ? `Size: ${item.selectedSize}<br>` : '') + (item.selectedColor ? `Color: ${item.selectedColor}` : '');
                         row.innerHTML = `
                             <td><img src="${item.image || 'https://placehold.co/40x40/333/ccc?text=N/A'}" alt="${item.name}" style="width:40px; height:auto; border-radius:3px;"></td>
-                            <td>${item.name}</td>
-                            <td>${optionsText || 'N/A'}</td>
-                            <td>${item.quantity}</td>
-                            <td>$${parseFloat(item.price).toFixed(2)}</td>
-                            <td>$${(parseFloat(item.price) * item.quantity).toFixed(2)}</td>
+                            <td>${item.name}</td> <td>${optionsText || 'N/A'}</td> <td>${item.quantity}</td>
+                            <td>$${parseFloat(item.price).toFixed(2)}</td> <td>$${(parseFloat(item.price) * item.quantity).toFixed(2)}</td>
                         `;
                     });
                 }
             }
-            
             if (markOrderDoneBtn) {
-                if (order.status && order.status.toLowerCase() === 'processing') {
-                    markOrderDoneBtn.classList.remove('hidden');
-                } else {
-                    markOrderDoneBtn.classList.add('hidden');
-                }
+                markOrderDoneBtn.classList.toggle('hidden', !(order.status && order.status.toLowerCase() === 'processing'));
             }
-
-
             if (orderDetailModalOverlay) orderDetailModalOverlay.classList.add('open');
         }
-
         if (orderDetailModalCloseBtn && orderDetailModalOverlay) {
-            orderDetailModalCloseBtn.addEventListener('click', () => {
-                orderDetailModalOverlay.classList.remove('open');
-                currentViewingOrderId = null; 
-            });
-             orderDetailModalOverlay.addEventListener('click', (event) => { 
-                if (event.target === orderDetailModalOverlay) {
-                    orderDetailModalOverlay.classList.remove('open');
-                    currentViewingOrderId = null; 
-                }
+            orderDetailModalCloseBtn.addEventListener('click', () => { orderDetailModalOverlay.classList.remove('open'); currentViewingOrderId = null; });
+            orderDetailModalOverlay.addEventListener('click', (event) => { 
+                if (event.target === orderDetailModalOverlay) { orderDetailModalOverlay.classList.remove('open'); currentViewingOrderId = null; }
             });
         }
-
         if (markOrderDoneBtn) {
             markOrderDoneBtn.addEventListener('click', () => {
-                if (!currentViewingOrderId) {
-                    console.error("No order ID stored to mark as done.");
-                    return;
-                }
+                if (!currentViewingOrderId) return;
                 let orders = getOrders();
                 const orderIndex = orders.findIndex(o => o.id === currentViewingOrderId);
                 if (orderIndex > -1) {
                     orders[orderIndex].status = "Completed";
                     saveOrders(orders);
-                    
                     if (modalOrderStatus) {
                         modalOrderStatus.textContent = "Completed";
                         modalOrderStatus.className = `status-badge ${getStatusBadgeClass("Completed")}`;
                     }
                     markOrderDoneBtn.classList.add('hidden'); 
-
                     renderOrdersTable(currentOrderFilter); 
                     updateDashboardMetrics(); 
-                    
-                    console.log(`Order ${currentViewingOrderId} marked as Completed.`);
-                } else {
-                    console.error("Could not find order to mark as done:", currentViewingOrderId);
                 }
             });
         }
-
         function renderOrdersTable(filterStatus = 'All') {
             const orderTableBody = document.getElementById('order-table-body');
             const noOrdersMsgEl = document.getElementById('no-orders-message');
-            if (!orderTableBody || !noOrdersMsgEl) {
-                console.error("Order table body or no-orders message element not found.");
-                return;
-            }
-
+            if (!orderTableBody || !noOrdersMsgEl) return;
             let orders = getOrders();
             orderTableBody.innerHTML = ''; 
+            // Corrected: Assign to existing global variable, do not re-declare with let/const
             currentOrderFilter = filterStatus; 
-
-            let filteredOrders = orders;
-            if (filterStatus !== 'All') {
-                filteredOrders = orders.filter(order => order.status === filterStatus);
-            }
-            
-            const filterButtons = document.querySelectorAll('#order-filter-buttons .btn-filter');
-            filterButtons.forEach(button => {
-                if (button.dataset.status === filterStatus) {
-                    button.classList.add('active');
-                } else {
-                    button.classList.remove('active');
-                }
-            });
-
+            let filteredOrders = (filterStatus !== 'All') ? orders.filter(order => order.status === filterStatus) : orders;
+            document.querySelectorAll('#order-filter-buttons .btn-filter').forEach(b => b.classList.toggle('active', b.dataset.status === filterStatus));
             if (filteredOrders.length === 0) {
                 noOrdersMsgEl.textContent = `No orders found with status: ${filterStatus}.`;
                 noOrdersMsgEl.classList.remove('hidden');
             } else {
                 noOrdersMsgEl.classList.add('hidden');
                 filteredOrders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
                 filteredOrders.forEach(order => {
                     const row = orderTableBody.insertRow();
-                    const statusBadgeClass = getStatusBadgeClass(order.status);
                     row.innerHTML = `
-                        <td>${order.id}</td>
-                        <td>${order.customerName || 'N/A'}</td>
-                        <td>${new Date(order.timestamp).toLocaleString()}</td>
-                        <td>$${parseFloat(order.totalAmount || 0).toFixed(2)}</td>
-                        <td><span class="status-badge ${statusBadgeClass}">${order.status}</span></td>
+                        <td>${order.id}</td> <td>${order.customerName || 'N/A'}</td>
+                        <td>${new Date(order.timestamp).toLocaleString()}</td> <td>$${parseFloat(order.totalAmount || 0).toFixed(2)}</td>
+                        <td><span class="status-badge ${getStatusBadgeClass(order.status)}">${order.status}</span></td>
                         <td class="space-x-1">
-                            <button class="btn btn-secondary btn-sm btn-view-order" data-order-id="${order.id}" title="View Order Details">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            </td>
+                            <button class="btn btn-secondary btn-sm btn-view-order" data-order-id="${order.id}" title="View Details"><i class="fas fa-eye"></i></button>
+                            <button class="btn btn-secondary btn-sm btn-print-shipping" data-order-id="${order.id}" title="Print Shipping Info"><i class="fas fa-print"></i></button>
+                        </td>
                     `;
                 });
-                document.querySelectorAll('.btn-view-order').forEach(button => {
-                    button.addEventListener('click', function() {
-                        displayOrderDetailModal(this.dataset.orderId);
-                    });
-                });
+                document.querySelectorAll('.btn-view-order').forEach(b => b.addEventListener('click', function() { displayOrderDetailModal(this.dataset.orderId); }));
+                document.querySelectorAll('.btn-print-shipping').forEach(b => b.addEventListener('click', function() { printShippingInfo(this.dataset.orderId); }));
             }
         }
-
         const orderFilterButtonsContainer = document.getElementById('order-filter-buttons');
         if (orderFilterButtonsContainer) {
             orderFilterButtonsContainer.addEventListener('click', function(event) {
-                if (event.target.matches('.btn-filter')) {
-                    const status = event.target.dataset.status;
-                    renderOrdersTable(status);
-                }
+                if (event.target.matches('.btn-filter')) renderOrdersTable(event.target.dataset.status);
             });
         }
 
-        // --- Newsletter Emails Display ---
+        // Newsletter Emails
         function loadNewsletterEmails() {
             const emailsListEl = document.getElementById('newsletter-emails-list');
             const noEmailsMessageEl = document.getElementById('no-newsletter-emails');
-            if (!emailsListEl || !noEmailsMessageEl) {
-                console.error("Newsletter emails list or message element not found.");
-                return;
-            }
-
+            if (!emailsListEl || !noEmailsMessageEl) return;
             emailsListEl.innerHTML = ''; 
             let newsletterSignups = [];
-            try {
-                const storedSignups = localStorage.getItem('triumindNewsletterSignups');
-                if (storedSignups) {
-                    newsletterSignups = JSON.parse(storedSignups);
-                }
-            } catch (e) {
-                console.error("Error parsing newsletter signups from localStorage:", e);
-                newsletterSignups = [];
-            }
-
-            if (newsletterSignups.length === 0) {
-                noEmailsMessageEl.classList.remove('hidden');
-                emailsListEl.classList.add('hidden'); 
-            } else {
-                noEmailsMessageEl.classList.add('hidden');
-                emailsListEl.classList.remove('hidden'); 
-                newsletterSignups.forEach(email => {
-                    const listItem = document.createElement('li');
-                    listItem.textContent = email;
-                    emailsListEl.appendChild(listItem);
-                });
-            }
+            try { newsletterSignups = JSON.parse(localStorage.getItem('triumindNewsletterSignups')) || []; } 
+            catch (e) { console.error("Error parsing newsletter signups:", e); }
+            noEmailsMessageEl.classList.toggle('hidden', newsletterSignups.length > 0);
+            emailsListEl.classList.toggle('hidden', newsletterSignups.length === 0);
+            newsletterSignups.forEach(email => {
+                const listItem = document.createElement('li');
+                listItem.textContent = email;
+                emailsListEl.appendChild(listItem);
+            });
         }
 
-        // --- Stories Management ---
+        // Stories Management
         const storySlotsContainer = document.getElementById('story-slots-container');
-        const NUM_STORY_SLOTS = 4; // Matching the 4 story image slots on index.html
-        let currentStoryImages = []; // To hold temporary Base64 data before saving
-
+        const NUM_STORY_SLOTS = 4; 
+        let currentStoryImages = []; 
         function initializeStorySlots() {
             if (!storySlotsContainer) return;
-            storySlotsContainer.innerHTML = ''; // Clear existing slots
-            currentStoryImages = getStoredStories(); // Load from localStorage
-
+            storySlotsContainer.innerHTML = ''; 
+            currentStoryImages = getStoredStories(); 
             for (let i = 0; i < NUM_STORY_SLOTS; i++) {
-                const storyData = currentStoryImages[i] || { imageDataUrl: null }; // Default if no data
-
+                const storyData = currentStoryImages[i] || { imageDataUrl: null, message: '' }; 
                 const slotDiv = document.createElement('div');
                 slotDiv.className = 'story-slot flex flex-col items-center';
-                
-                const title = document.createElement('h4');
-                title.className = 'text-lg font-medium mb-2 text-[var(--admin-text-secondary)]';
-                title.textContent = `Story Slot ${i + 1}`;
-                slotDiv.appendChild(title);
-
-                const previewContainer = document.createElement('div');
-                previewContainer.className = 'story-image-preview-container';
-                
-                const previewImg = document.createElement('img');
-                previewImg.className = 'story-image-preview';
-                previewImg.src = storyData.imageDataUrl || 'https://placehold.co/400x500/1a1a1a/cccccc?text=No+Image';
-                previewImg.alt = `Story ${i + 1} Preview`;
-                previewContainer.appendChild(previewImg);
-                slotDiv.appendChild(previewContainer);
-
-                const fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.className = 'story-image-input';
-                fileInput.accept = 'image/*';
-                fileInput.dataset.storyIndex = i;
-                fileInput.addEventListener('change', (event) => handleStoryImageUpload(event, i, previewImg));
-                slotDiv.appendChild(fileInput);
-
-                const uploadButton = document.createElement('button');
-                uploadButton.className = 'btn btn-secondary btn-sm mb-2 w-full';
-                uploadButton.textContent = 'Upload Image';
-                uploadButton.onclick = () => fileInput.click();
-                slotDiv.appendChild(uploadButton);
-
-                const removeButton = document.createElement('button');
-                removeButton.className = 'btn btn-danger btn-sm w-full';
-                removeButton.textContent = 'Remove Image';
-                removeButton.dataset.storyIndex = i;
-                removeButton.onclick = () => removeStoryImage(i, previewImg);
-                slotDiv.appendChild(removeButton);
-
+                slotDiv.innerHTML = `
+                    <h4 class="text-lg font-medium mb-2 text-[var(--admin-text-secondary)]">Story Slot ${i + 1}</h4>
+                    <div class="story-image-preview-container">
+                        <img class="story-image-preview" src="${storyData.imageDataUrl || 'https://placehold.co/400x500/1a1a1a/cccccc?text=No+Image'}" alt="Story ${i + 1} Preview">
+                    </div>
+                    <label for="story-message-${i}" class="form-label text-left w-full mt-2">Story Message</label>
+                    <textarea id="story-message-${i}" class="form-textarea story-message-input mb-3" rows="3" placeholder="e.g., Badr was the first to join...">${storyData.message || ''}</textarea>
+                    <input type="file" class="story-image-input" accept="image/*" data-story-index="${i}">
+                    <button type="button" class="btn btn-secondary btn-sm mb-2 w-full upload-story-btn">Upload Image</button>
+                    <button type="button" class="btn btn-danger btn-sm w-full remove-story-btn" data-story-index="${i}">Remove Image</button>
+                `;
+                const previewImg = slotDiv.querySelector('.story-image-preview');
+                slotDiv.querySelector('.story-image-input').addEventListener('change', (event) => handleStoryImageUpload(event, i, previewImg));
+                slotDiv.querySelector('.upload-story-btn').onclick = () => slotDiv.querySelector('.story-image-input').click();
+                slotDiv.querySelector('.remove-story-btn').onclick = () => removeStoryImage(i, previewImg);
                 storySlotsContainer.appendChild(slotDiv);
             }
         }
-
         function getStoredStories() {
             try {
                 const stories = JSON.parse(localStorage.getItem('triumindStories'));
-                if (Array.isArray(stories) && stories.length === NUM_STORY_SLOTS) {
-                    return stories;
+                if (Array.isArray(stories) && stories.length > 0) {
+                     return stories.map(story => ({
+                        imageDataUrl: story ? story.imageDataUrl : null,
+                        message: story ? story.message || '' : ''
+                    })).slice(0, NUM_STORY_SLOTS);
                 }
-            } catch (e) {
-                console.error("Error parsing stories from localStorage:", e);
-            }
-            // Return default structure if not found or invalid
-            return Array(NUM_STORY_SLOTS).fill(null).map(() => ({ imageDataUrl: null }));
+            } catch (e) { console.error("Error parsing stories:", e); }
+            return Array(NUM_STORY_SLOTS).fill(null).map(() => ({ imageDataUrl: null, message: '' }));
         }
 
         function saveStoriesToLocalStorage() {
-            try {
-                localStorage.setItem('triumindStories', JSON.stringify(currentStoryImages));
-                // Add a small success message
-                const storiesAdminSection = document.getElementById('stories-admin-section');
-                if (storiesAdminSection) {
-                    let msgEl = storiesAdminSection.querySelector('.save-success-msg');
-                    if (!msgEl) {
-                        msgEl = document.createElement('p');
-                        msgEl.className = 'text-green-400 text-sm mt-3 text-center save-success-msg';
-                        const saveButton = document.getElementById('save-stories-changes');
-                        saveButton.parentNode.insertBefore(msgEl, saveButton.nextSibling);
-                    }
-                    msgEl.textContent = 'Story changes saved!';
-                    setTimeout(() => { msgEl.textContent = ''; }, 3000);
-                }
-
-            } catch (e) {
-                console.error("Error saving stories to localStorage:", e);
-                 const storiesAdminSection = document.getElementById('stories-admin-section');
-                if (storiesAdminSection) {
-                     let msgEl = storiesAdminSection.querySelector('.save-error-msg');
-                    if (!msgEl) {
-                        msgEl = document.createElement('p');
-                        msgEl.className = 'text-red-400 text-sm mt-3 text-center save-error-msg';
-                         const saveButton = document.getElementById('save-stories-changes');
-                        saveButton.parentNode.insertBefore(msgEl, saveButton.nextSibling);
-                    }
-                    msgEl.textContent = 'Error saving stories. Storage might be full.';
-                    setTimeout(() => { msgEl.textContent = ''; }, 4000);
-                }
-            }
+            try { localStorage.setItem('triumindStories', JSON.stringify(currentStoryImages)); } 
+            catch (e) { console.error("Error saving stories:", e); }
         }
-        
+
         function handleStoryImageUpload(event, index, previewImgElement) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewImgElement.src = e.target.result;
-                    currentStoryImages[index] = { imageDataUrl: e.target.result };
-                    // No automatic save here, user clicks "Save Story Changes"
+                reader.onload = (e) => { 
+                    previewImgElement.src = e.target.result; 
+                    if (!currentStoryImages[index]) {
+                         currentStoryImages[index] = { imageDataUrl: null, message: '' };
+                    }
+                    currentStoryImages[index].imageDataUrl = e.target.result;
                 };
                 reader.readAsDataURL(file);
             }
         }
-
         function removeStoryImage(index, previewImgElement) {
             previewImgElement.src = 'https://placehold.co/400x500/1a1a1a/cccccc?text=No+Image';
-            currentStoryImages[index] = { imageDataUrl: null };
-            // No automatic save here
+            if (currentStoryImages[index]) {
+                currentStoryImages[index].imageDataUrl = null;
+            }
         }
 
         const saveStoriesButton = document.getElementById('save-stories-changes');
         if (saveStoriesButton) {
-            saveStoriesButton.addEventListener('click', saveStoriesToLocalStorage);
+            saveStoriesButton.addEventListener('click', () => {
+                const messageInputs = storySlotsContainer.querySelectorAll('.story-message-input');
+                messageInputs.forEach((textarea, index) => {
+                    if (currentStoryImages[index]) {
+                        currentStoryImages[index].message = textarea.value.trim();
+                    } else if (textarea.value.trim() !== '') {
+                        currentStoryImages[index] = { imageDataUrl: null, message: textarea.value.trim() };
+                    }
+                });
+
+                saveStoriesToLocalStorage();
+
+                const existingMsg = saveStoriesButton.parentElement.querySelector('.save-feedback');
+                if (existingMsg) existingMsg.remove();
+                
+                const successMsg = document.createElement('p');
+                successMsg.textContent = 'Story changes saved successfully!';
+                successMsg.className = 'text-green-400 text-sm mt-4 save-feedback';
+                saveStoriesButton.parentNode.insertBefore(successMsg, saveStoriesButton.nextSibling);
+                setTimeout(() => successMsg.remove(), 3000);
+            });
         }
 
-
+        // Dashboard Metrics
         function updateDashboardMetrics() {
-            const orders = getOrders();
-            const products = getProducts(); 
-
+            const orders = getOrders(); const products = getProducts(); 
             const totalRevenueEl = document.getElementById('dashboard-total-revenue');
             const activeOrdersEl = document.getElementById('dashboard-active-orders');
             const productCountEl = document.getElementById('dashboard-product-count'); 
-
-            let totalRevenue = 0;
-            let activeOrderCount = 0;
-
+            let totalRevenue = 0; let activeOrderCount = 0;
             orders.forEach(order => {
-                if (order.status === 'Completed' || order.status === 'Shipped') { 
-                    totalRevenue += parseFloat(order.totalAmount || 0);
-                }
-                if (order.status === 'Processing' || order.status === 'Shipped') { 
-                    activeOrderCount++;
-                }
+                if (order.status === 'Completed' || order.status === 'Shipped') totalRevenue += parseFloat(order.totalAmount || 0);
+                if (order.status === 'Processing' || order.status === 'Shipped') activeOrderCount++;
             });
-
             if (totalRevenueEl) totalRevenueEl.textContent = `$${totalRevenue.toFixed(2)}`;
             if (activeOrdersEl) activeOrdersEl.textContent = activeOrderCount;
             if (productCountEl) productCountEl.textContent = products.length; 
         }
         
+        // Initial Load
         document.addEventListener('DOMContentLoaded', () => {
-            if (productTableBody) { renderProductsTable(); } 
-            if (sectionVisibilityForm) { loadSectionVisibilitySettings(); } 
+            const initialAdminActiveLinkFromLoad = document.querySelector('.sidebar .nav-link.active');
+            if (initialAdminActiveLinkFromLoad && initialAdminActiveLinkFromLoad.getAttribute('data-target')) {
+                 showAdminSection(initialAdminActiveLinkFromLoad.getAttribute('data-target'));
+            } else if (adminNavLinks.length > 0 && adminNavLinks[0].getAttribute('data-target')) {
+                adminNavLinks[0].classList.add('active'); 
+                showAdminSection(adminNavLinks[0].getAttribute('data-target'));
+            }
+            renderProductsTable(); 
             renderOrdersTable(); 
             updateDashboardMetrics(); 
             
-            const newsletterSection = document.getElementById('newsletter-admin-section');
-            if (newsletterSection && !newsletterSection.classList.contains('hidden')) {
-                loadNewsletterEmails();
-            }
-            const storiesAdminSection = document.getElementById('stories-admin-section');
-             if (storiesAdminSection && !storiesAdminSection.classList.contains('hidden')) {
-                initializeStorySlots();
-            }
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'triumindProductReviews') {
+                    if(!document.getElementById('reviews-admin-section').classList.contains('hidden')) {
+                        renderReviewsTable();
+                    }
+                }
+                if (event.key === 'triumindContactMessages') {
+                     if(!document.getElementById('messages-admin-section').classList.contains('hidden')) {
+                        renderMessagesTable();
+                    }
+                }
+            });
         });
 
-        window.addEventListener('storage', (event) => {
-            if (event.key === 'triumindProducts') { 
-                renderProductsTable(); 
-                updateDashboardMetrics(); 
-            }
-            if (event.key === 'triumindOrders') { 
-                renderOrdersTable(currentOrderFilter); 
-                updateDashboardMetrics();
-            }
-            if (event.key === 'triumindSectionVisibility') { 
-                if (typeof loadSectionVisibilitySettings === 'function') {
-                    loadSectionVisibilitySettings();
-                }
-            }
-            if (event.key === 'triumindNewsletterSignups') {
-                const newsletterSection = document.getElementById('newsletter-admin-section');
-                if (newsletterSection && !newsletterSection.classList.contains('hidden')) {
-                    loadNewsletterEmails();
-                }
-            }
-            if (event.key === 'triumindStories') { // If stories are changed elsewhere, update admin view
-                const storiesAdminSection = document.getElementById('stories-admin-section');
-                if (storiesAdminSection && !storiesAdminSection.classList.contains('hidden')) {
-                    initializeStorySlots();
-                }
-            }
-        });
     </script>
 </body>
 </html>
