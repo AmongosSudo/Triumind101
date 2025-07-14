@@ -258,6 +258,9 @@
         .cart-item-remove button { background: none; border: none; color: #f87171; font-size: 0.85rem; text-decoration: underline; transition: color 0.2s ease; padding: 0.25rem; }
         .cart-item-remove button:hover { color: #ef4444; }
         .cart-footer { padding: 1.25rem 1.5rem; border-top: 1px solid #2a2a3a; background-color: #1f1f2b; border-bottom-left-radius: 0.75rem; border-bottom-right-radius: 0.75rem; }
+        .cart-total { display: flex; justify-content: space-between; align-items: center; font-size: 1.05rem; font-weight: 600; margin-bottom: 0.875rem; color: #e0e0e0; }
+        .cart-checkout-button { display: block; width: 100%; background-color: #8B5CF6; color: white; text-align: center; padding: 0.75rem 1rem; border-radius: 0.375rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; transition: background-color 0.2s ease; }
+        .cart-checkout-button:hover { background-color: #7c3aed; }
         .empty-cart-message { text-align: center; color: #9ca3af; font-size: 0.95rem; padding: 2rem 0; }
         .cart-icon-container { position: relative; cursor: none; color: #d1d5db; transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1); }
         .cart-icon-container:hover { color: #ffffff; }
@@ -334,7 +337,7 @@
         }
 
         /* Ink Bleed / Ripple Unveil Animation Styles - Generalized */
-        .triumind-animated-button { /* Changed from #hero-explore-gear-btn */
+        .triumind-animated-button {
             position: relative;
             overflow: hidden;
         }
@@ -351,7 +354,6 @@
             transform: scale(0.8);
         }
 
-        /* The ripple pseudo-element */
         .triumind-animated-button::after {
             content: '';
             position: absolute;
@@ -377,7 +379,6 @@
             transform: translate(-50%, -50%) scale(1);
         }
 
-        /* Animated text that appears */
         .triumind-animated-button .animated-brand-text-container {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -509,7 +510,7 @@
                     <p>Check back soon for the latest drops.</p>
                 </div>
                 <div class="text-center mt-16 fade-in" style="transition-delay: 0.5s;">
-                     <a href="AllGear.html" class="triumind-animated-button bg-white text-black px-8 py-3 rounded-lg font-semibold uppercase tracking-wide btn-hover-effect">
+                     <a href="AllGear.html" class="triumind-animated-button mt-8 inline-block bg-white text-black px-8 py-3 rounded-lg font-semibold uppercase tracking-wide btn-hover-effect">
                         <span class="original-button-text">View All Gear (Archive)</span>
                     </a>
                 </div>
@@ -602,7 +603,7 @@
         <button id="story-viewer-close" class="absolute top-6 right-6 text-white text-5xl font-light leading-none z-10">&times;</button>
     </div>
 
-    <div id="cart-modal"> 
+    <div id="cart-modal">
         <div class="cart-header">
             <h2>Your Cart</h2>
             <button id="cart-close-button" class="cart-close-button">&times;</button>
@@ -610,11 +611,22 @@
         <div id="cart-body" class="cart-body">
         </div>
         <div class="cart-footer">
-            <button id="cart-checkout-button" class="triumind-animated-button cart-checkout-button btn-hover-effect">
-                <span class="original-button-text">Proceed to Payment</span>
+            <div id="cart-total-container" class="cart-total hidden">
+                <span>Total:</span>
+                <span id="cart-total-price">$0.00</span>
+            </div>
+            <div class="my-4">
+                <label for="cart-customer-email" class="block text-sm font-medium text-gray-400 mb-1">Email for Order & Newsletter:</label>
+                <input type="email" id="cart-customer-email" name="cart-customer-email" required
+                       class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent text-white placeholder-gray-500 transition duration-200"
+                       placeholder="your.email@example.com">
+            </div>
+            <button id="cart-checkout-button" class="triumind-animated-button cart-checkout-button btn-hover-effect hidden">
+                <span class="original-button-text">Complete Payment</span>
             </button>
         </div>
     </div>
+
 
     <div id="toast-notification" class="toast-notification">Item added to cart!</div>
 
@@ -634,23 +646,26 @@
         let mainCountdownInterval = null; 
         let activeCountdownTarget = null;
 
-        // Cart Elements
+        // --- Cart Elements ---
         const cartModal = document.getElementById('cart-modal');
         const cartIconContainer = document.getElementById('cart-icon-container');
         const mobileCartIconContainer = document.getElementById('mobile-cart-icon-container');
         const cartCloseButton = document.getElementById('cart-close-button');
         const cartBody = document.getElementById('cart-body');
+        const cartTotalPriceEl = document.getElementById('cart-total-price');
         const cartItemCountBadge = document.getElementById('cart-item-count-badge');
         const mobileCartItemCountBadge = document.getElementById('mobile-cart-item-count-badge');
+        const cartTotalContainer = document.getElementById('cart-total-container');
         const cartCheckoutButton = document.getElementById('cart-checkout-button');
+        const cartCustomerEmailInput = document.getElementById('cart-customer-email');
         const toastNotification = document.getElementById('toast-notification');
         let cartItems = [];
         
-        // Review Elements
+        // --- Review Elements ---
         const featuredReviewsGrid = document.getElementById('featured-reviews-grid');
         const noFeaturedReviewsMessage = document.getElementById('no-featured-reviews-message');
         
-        // Contact Form Elements
+        // --- Contact Form Elements ---
         const contactForm = document.getElementById('contact-form');
         
         const storyViewerOverlay = document.getElementById('story-viewer-overlay');
@@ -658,7 +673,7 @@
         const storyViewerMessage = document.getElementById('story-viewer-message');
         const storyViewerCloseBtn = document.getElementById('story-viewer-close');
 
-        // --- Localization (Reverted to original script structure) ---
+        // --- Localization ---
         let visitorInfo = {
             countryCode: 'US',
             currencyCode: 'USD',
@@ -703,11 +718,9 @@
         }
 
         function getDisplayPriceInfo(product) {
-            // Check for a country-specific price first.
             if (product && Array.isArray(product.countryPrices)) {
                 const countryOverride = product.countryPrices.find(p => p.country === visitorInfo.countryCode);
                 if (countryOverride && countryOverride.price) {
-                    // If an override exists, its price is in USD. Convert it to the user's local currency.
                     const convertedPrice = parseFloat(countryOverride.price) * visitorInfo.exchangeRate;
                     return {
                         amount: convertedPrice,
@@ -716,7 +729,6 @@
                 }
             }
             
-            // If no override, use the default USD price and convert it.
             const defaultUsdPrice = parseFloat(product.price || 0);
             const convertedPrice = defaultUsdPrice * visitorInfo.exchangeRate;
             return {
@@ -882,14 +894,18 @@
         }
 
         function renderCart() {
-            if (!cartBody) return;
-            cartBody.innerHTML = ''; 
+            if (!cartBody || !cartTotalPriceEl || !cartItemCountBadge || !cartTotalContainer || !cartCheckoutButton || !cartCustomerEmailInput) return;
+            cartBody.innerHTML = '';
             
             if (cartItems.length === 0) {
                 cartBody.innerHTML = '<p class="empty-cart-message">Your cart is currently empty. Go find some gear!</p>';
-                if(cartCheckoutButton) cartCheckoutButton.style.display = 'none';
+                cartTotalContainer.classList.add('hidden');
+                cartCheckoutButton.classList.add('hidden');
+                cartCustomerEmailInput.closest('div').classList.add('hidden');
             } else {
-                if(cartCheckoutButton) cartCheckoutButton.style.display = 'block';
+                cartTotalContainer.classList.remove('hidden');
+                cartCheckoutButton.classList.remove('hidden');
+                cartCustomerEmailInput.closest('div').classList.remove('hidden');
                 cartItems.forEach(item => {
                     const itemElement = document.createElement('div');
                     itemElement.classList.add('cart-item');
@@ -923,6 +939,13 @@
                 });
             }
             
+            const totalPriceUSD = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+            const totalDisplayAmount = totalPriceUSD * visitorInfo.exchangeRate;
+            cartTotalPriceEl.textContent = new Intl.NumberFormat(undefined, {
+                style: 'currency',
+                currency: visitorInfo.currencyCode
+            }).format(totalDisplayAmount);
+
             const totalQuantity = cartItems.reduce((total, item) => total + item.quantity, 0);
             if (totalQuantity > 0) {
                 cartItemCountBadge.textContent = totalQuantity;
@@ -1456,56 +1479,32 @@
             });
         }
 
-
-        // --- Cart Checkout Logic (Refactored) ---
-        function executeCartCheckout() {
-            if (cartItems.length === 0) {
-                showToast('Your cart is empty.');
-                return;
-            }
-
-            console.log("Proceeding to Stripe Checkout with items:", cartItems);
-            showToast('Redirecting to secure payment processor...');
-
-            const newOrder = {
-                id: `ORD-STRIPE-${Date.now()}`,
-                timestamp: new Date().toISOString(),
-                items: [...cartItems],
-                totalAmount: cartItems.reduce((total, item) => total + (item.price * item.quantity), 0),
-                status: "Processing"
-            };
-            try {
-                let orders = JSON.parse(localStorage.getItem('triumindOrders')) || [];
-                orders.push(newOrder);
-                localStorage.setItem('triumindOrders', JSON.stringify(orders));
-            } catch (e) {
-                console.error("Error saving order to localStorage:", e);
-            }
-            setTimeout(() => {
-                cartItems = [];
-                saveCartToStorage();
-                renderCart();
-                closeCart();
-                showToast('Order placed (simulation)! Thank you.');
-            }, 1500);
-        }
-
         // --- Generalized "Ink Bleed / Ripple Unveil" Animation ---
-
         function animateButtonInteraction(buttonElement, event) {
             if (buttonElement.classList.contains('is-animating-ripple') || buttonElement.dataset.animating === 'true') {
                 return; 
             }
-            event.preventDefault(); 
+            
+            const isAjaxButton = buttonElement.classList.contains('ajax-form-button');
+
+            if (!isAjaxButton) {
+                event.preventDefault();
+            }
+            
             buttonElement.dataset.animating = 'true';
 
             let originalTextSpan = buttonElement.querySelector('.original-button-text');
             if (!originalTextSpan) {
-                const currentText = buttonElement.innerHTML;
+                const contentToWrap = document.createDocumentFragment();
+                Array.from(buttonElement.childNodes).forEach(child => {
+                    if (!child.classList || !child.classList.contains('animated-brand-text-container')) {
+                        contentToWrap.appendChild(child.cloneNode(true));
+                    }
+                });
                 buttonElement.innerHTML = ''; 
                 originalTextSpan = document.createElement('span');
                 originalTextSpan.className = 'original-button-text';
-                originalTextSpan.innerHTML = currentText; 
+                originalTextSpan.appendChild(contentToWrap);
                 buttonElement.appendChild(originalTextSpan);
             }
 
@@ -1587,6 +1586,61 @@
                 button.dataset.animationInitialized = 'true'; 
             });
         }
+        
+        function executeCartCheckout() {
+            if (cartItems.length === 0) {
+                showToast('Your cart is empty.');
+                return;
+            }
+
+            const email = cartCustomerEmailInput ? cartCustomerEmailInput.value.trim() : '';
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!email || !emailRegex.test(email)) {
+                showToast('Please enter a valid email to proceed.');
+                if (cartCustomerEmailInput) cartCustomerEmailInput.focus();
+                return;
+            }
+
+            try {
+                let newsletterSignups = JSON.parse(localStorage.getItem('triumindNewsletterSignups')) || [];
+                if (!newsletterSignups.includes(email)) {
+                    newsletterSignups.push(email);
+                    localStorage.setItem('triumindNewsletterSignups', JSON.stringify(newsletterSignups));
+                    showToast('Email saved for newsletter!');
+                }
+            } catch (e) {
+                console.error("Error saving email to newsletter list:", e);
+            }
+
+            showToast('Proceeding to checkout (simulation)...');
+            const newOrder = {
+                id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                timestamp: new Date().toISOString(),
+                items: [...cartItems],
+                totalAmount: cartItems.reduce((total, item) => total + (item.price * item.quantity), 0),
+                customerName: "Guest User (Main Site)",
+                customerEmail: email,
+                status: "Processing"
+            };
+            try {
+                let orders = JSON.parse(localStorage.getItem('triumindOrders')) || [];
+                orders.push(newOrder);
+                localStorage.setItem('triumindOrders', JSON.stringify(orders));
+            } catch (e) {
+                console.error("Error saving order to localStorage:", e);
+                showToast('Error placing order. Please try again.');
+                return;
+            }
+            setTimeout(() => {
+                cartItems = [];
+                saveCartToStorage();
+                renderCart();
+                if(cartCustomerEmailInput) cartCustomerEmailInput.value = '';
+                closeCart();
+                showToast('Order placed (simulation)! Thank you.');
+            }, 1500);
+        }
 
         // --- DOMContentLoaded ---
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1619,10 +1673,6 @@
                         if (cartModal && cartModal.classList.contains('open')) closeCart();
                     }
                 });
-            }
-
-
-            if (cartCheckoutButton) {
             }
 
             initializeAnimatedButtons(); 
@@ -1663,104 +1713,6 @@
                     if (cartModal && cartModal.classList.contains('open')) closeCart();
                 }
             });
-
-            function animateButtonInteraction(buttonElement, event) {
-                if (buttonElement.classList.contains('is-animating-ripple') || buttonElement.dataset.animating === 'true') {
-                    return; 
-                }
-                event.preventDefault(); 
-                buttonElement.dataset.animating = 'true';
-
-                let originalTextSpan = buttonElement.querySelector('.original-button-text');
-                if (!originalTextSpan) {
-                    const currentText = buttonElement.innerHTML;
-                    buttonElement.innerHTML = ''; 
-                    originalTextSpan = document.createElement('span');
-                    originalTextSpan.className = 'original-button-text';
-                    originalTextSpan.innerHTML = currentText; 
-                    buttonElement.appendChild(originalTextSpan);
-                }
-
-                let animatedTextContainer = buttonElement.querySelector('.animated-brand-text-container');
-                if (!animatedTextContainer) {
-                    animatedTextContainer = document.createElement('span');
-                    animatedTextContainer.className = 'animated-brand-text-container';
-                    animatedTextContainer.textContent = 'TRIUMIND';
-                    buttonElement.appendChild(animatedTextContainer);
-                }
-
-                const rippleExpandTime = 400; 
-                const brandTextAppearDelay = 200; 
-                const brandTextAppearTime = 300; 
-                const holdTime = 300; 
-                const resolveTime = 200; 
-
-                buttonElement.classList.add('is-animating-ripple');
-                const timeToFullReveal = Math.max(rippleExpandTime, brandTextAppearDelay + brandTextAppearTime);
-
-                setTimeout(() => { 
-                    setTimeout(() => {
-                        buttonElement.classList.remove('is-animating-ripple'); 
-
-                        setTimeout(() => {
-                            try {
-                                if (buttonElement.tagName === 'A' && buttonElement.href) {
-                                    window.location.href = buttonElement.href;
-                                } else if (buttonElement.type === 'submit' && buttonElement.form) {
-                                    buttonElement.form.submit();
-                                } else if (buttonElement.id === 'cart-checkout-button') {
-                                    executeCartCheckout();
-                                }
-                            } catch (e) {
-                                console.error("Error performing button action after animation:", e);
-                            } finally {
-                                delete buttonElement.dataset.animating;
-                            }
-                        }, resolveTime);
-                    }, holdTime);
-                }, timeToFullReveal);
-            }
-
-            function initializeAnimatedButtons() {
-                const buttonsToAnimate = document.querySelectorAll('.triumind-animated-button');
-                buttonsToAnimate.forEach(button => {
-                    if (button.dataset.animationInitialized === 'true') {
-                        return;
-                    }
-
-                    let originalTextSpan = button.querySelector('.original-button-text');
-                    if (!originalTextSpan) {
-                        const contentToWrap = document.createDocumentFragment();
-                        Array.from(button.childNodes).forEach(child => {
-                            if (!child.classList || !child.classList.contains('animated-brand-text-container')) {
-                                contentToWrap.appendChild(child.cloneNode(true));
-                            }
-                        });
-
-                        button.innerHTML = ''; 
-
-                        originalTextSpan = document.createElement('span');
-                        originalTextSpan.className = 'original-button-text';
-                        originalTextSpan.appendChild(contentToWrap);
-                        button.appendChild(originalTextSpan);
-                    }
-
-                    let animatedTextContainer = button.querySelector('.animated-brand-text-container');
-                    if (!animatedTextContainer) {
-                        animatedTextContainer = document.createElement('span');
-                        animatedTextContainer.className = 'animated-brand-text-container';
-                        animatedTextContainer.textContent = 'TRIUMIND';
-                        button.appendChild(animatedTextContainer);
-                    }
-
-                    button.addEventListener('click', function(event) {
-                        animateButtonInteraction(this, event);
-                    });
-                    button.dataset.animationInitialized = 'true'; 
-                });
-            }
-
-            initializeAnimatedButtons(); 
 
         });
     </script>
