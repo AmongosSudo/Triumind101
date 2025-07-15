@@ -271,7 +271,64 @@
     </div>
     <div id="toast-notification" class="toast-notification">Item added to cart!</div>
 
-    <script>
+    <script type="module">
+        // --- Firebase SDK Imports ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Initialization ---
+        let db, auth, app;
+        let productsCache = []; // Local cache for products
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'triumind-dev';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+
+            apiKey: "AIzaSyBuFYZ_-8fL3jKOYUSWspd7aeTFq-QoF6E",
+
+            authDomain: "triumind-store1.firebaseapp.com",
+
+            projectId: "triumind-store1",
+
+            storageBucket: "triumind-store1.firebasestorage.app",
+
+            messagingSenderId: "945278061272",
+
+            appId: "1:945278061272:web:c515b911cd680f4b56e5ad"
+
+        };
+        
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (e) {
+            console.error("Error initializing Firebase:", e);
+        }
+
+        onAuthStateChanged(auth, user => {
+            if (!user) {
+                signIn();
+            }
+        });
+
+        async function signIn() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication failed:", error);
+            }
+        }
+        
+        // --- Firestore Collection References ---
+        const productsCollection = collection(db, `artifacts/${appId}/public/data/products`);
+        const ordersCollection = collection(db, `artifacts/${appId}/public/data/orders`);
+        const newsletterCollection = collection(db, `artifacts/${appId}/public/data/newsletterSignups`);
+
         // --- Global Element References ---
         const customCursorEl = document.getElementById('custom-cursor');
         const modalOverlay = document.getElementById('modal-overlay');
@@ -291,10 +348,7 @@
 
         // --- Localization ---
         let visitorInfo = {
-            countryCode: 'US',
-            currencyCode: 'USD',
-            currencySymbol: '$',
-            exchangeRate: 1
+            countryCode: 'US', currencyCode: 'USD', currencySymbol: '$', exchangeRate: 1
         };
 
         async function fetchVisitorInfo() {
@@ -306,7 +360,7 @@
                 const countryCode = geoData.country_code;
                 const currencyCode = geoData.currency;
                 
-                if (!countryCode || !currencyCode) throw new Error('Locale data not found in Geo-IP response');
+                if (!countryCode || !currencyCode) throw new Error('Locale data not found');
 
                 const ratesResponse = await fetch('https://open.er-api.com/v6/latest/USD');
                 if (!ratesResponse.ok) throw new Error('Exchange rate API request failed');
@@ -318,15 +372,7 @@
                 const currencySymbols = { USD: '$', EUR: '€', GBP: '£', JPY: '¥', AED: 'د.إ' };
                 const currencySymbol = currencySymbols[currencyCode] || currencyCode;
 
-                console.log(`Visitor from ${geoData.country_name}. Country: ${countryCode}, Currency: ${currencyCode}, Rate: ${exchangeRate}`);
-
-                return {
-                    countryCode: countryCode,
-                    currencyCode: currencyCode,
-                    currencySymbol: currencySymbol,
-                    exchangeRate: exchangeRate
-                };
-
+                return { countryCode, currencyCode, currencySymbol, exchangeRate };
             } catch (error) {
                 console.error("Visitor info detection failed:", error.message, "Defaulting to USD.");
                 return { countryCode: 'US', currencyCode: 'USD', currencySymbol: '$', exchangeRate: 1 };
@@ -337,37 +383,36 @@
             if (product && Array.isArray(product.countryPrices)) {
                 const countryOverride = product.countryPrices.find(p => p.country === visitorInfo.countryCode);
                 if (countryOverride && countryOverride.price) {
-                    const convertedPrice = parseFloat(countryOverride.price) * visitorInfo.exchangeRate;
-                    return {
-                        amount: convertedPrice,
-                        currency: visitorInfo.currencyCode
-                    };
+                    return { amount: parseFloat(countryOverride.price), currency: visitorInfo.currencyCode };
                 }
             }
-            
             const defaultUsdPrice = parseFloat(product.price || 0);
             const convertedPrice = defaultUsdPrice * visitorInfo.exchangeRate;
-            return {
-                amount: convertedPrice,
-                currency: visitorInfo.currencyCode
-            };
+            return { amount: convertedPrice, currency: visitorInfo.currencyCode };
         }
 
         function formatPrice(priceInfo) {
             return new Intl.NumberFormat(undefined, { 
-                style: 'currency', 
-                currency: priceInfo.currency 
+                style: 'currency', currency: priceInfo.currency 
             }).format(priceInfo.amount);
         }
 
-        async function initializeLocalization() {
+        async function initializeLocalizationAndData() {
             visitorInfo = await fetchVisitorInfo();
-            renderAllProducts();
-            if (cartItems.length > 0) {
-                renderCart();
-            }
+            // Setup listener for products after getting visitor info
+            onSnapshot(productsCollection, (snapshot) => {
+                productsCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log("Products loaded from Firebase:", productsCache.length);
+                renderAllProducts();
+                if (cartItems.length > 0) {
+                    renderCart(); // Re-render cart to update prices if needed
+                }
+            }, (error) => {
+                console.error("Error fetching products from Firebase: ", error);
+                const productGrid = document.getElementById('all-product-grid');
+                if(productGrid) productGrid.innerHTML = `<p class="text-red-500 col-span-full">Error loading products.</p>`;
+            });
         }
-
 
         // --- Toast Notification Function ---
         function showToast(message) {
@@ -422,20 +467,14 @@
         }
 
         function addToCart(productId, productName, productImage, size, color) {
-            const allProducts = JSON.parse(localStorage.getItem('triumindProducts')) || [];
-            const product = allProducts.find(p => p.id === productId);
+            const product = productsCache.find(p => p.id === productId);
             if (!product) {
                 console.error("Product not found for cart operation:", productId);
                 return;
             }
 
-            let baseUsdPrice = parseFloat(product.price || 0);
-            if (product.countryPrices && Array.isArray(product.countryPrices)) {
-                const countryOverride = product.countryPrices.find(p => p.country === visitorInfo.countryCode);
-                if (countryOverride && countryOverride.price) {
-                    baseUsdPrice = parseFloat(countryOverride.price);
-                }
-            }
+            // The price in the cart should be the base USD price. Conversion happens at render time.
+            const baseUsdPrice = parseFloat(product.price || 0);
 
             const existingItemIndex = cartItems.findIndex(item =>
                 item.id === productId && item.selectedSize === size && item.selectedColor === color
@@ -445,13 +484,8 @@
                 cartItems[existingItemIndex].quantity += 1;
             } else {
                 cartItems.push({
-                    id: productId,
-                    name: productName,
-                    price: baseUsdPrice,
-                    image: productImage,
-                    quantity: 1,
-                    selectedSize: size,
-                    selectedColor: color
+                    id: productId, name: productName, price: baseUsdPrice,
+                    image: productImage, quantity: 1, selectedSize: size, selectedColor: color
                 });
             }
             saveCartToStorage();
@@ -506,8 +540,7 @@
 
                     const displayAmount = item.price * visitorInfo.exchangeRate;
                     const displayPrice = new Intl.NumberFormat(undefined, {
-                        style: 'currency',
-                        currency: visitorInfo.currencyCode
+                        style: 'currency', currency: visitorInfo.currencyCode
                     }).format(displayAmount);
 
                     itemElement.innerHTML = `
@@ -532,8 +565,7 @@
             const totalPriceUSD = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
             const totalDisplayAmount = totalPriceUSD * visitorInfo.exchangeRate;
             cartTotalPriceEl.textContent = new Intl.NumberFormat(undefined, {
-                style: 'currency',
-                currency: visitorInfo.currencyCode
+                style: 'currency', currency: visitorInfo.currencyCode
             }).format(totalDisplayAmount);
 
             const totalQuantity = cartItems.reduce((total, item) => total + item.quantity, 0);
@@ -573,26 +605,19 @@
                 console.error("All product grid or no-products message element not found.");
                 return;
             }
-            let allProducts = [];
-            try {
-                const storedProducts = localStorage.getItem('triumindProducts');
-                if (storedProducts) {
-                    allProducts = JSON.parse(storedProducts);
-                }
-            } catch (e) {
-                console.error("Error parsing products from localStorage for All Gear page:", e);
-                allProducts = [];
-            }
 
             productGrid.innerHTML = '';
 
-            if (allProducts.length === 0) {
+            if (productsCache.length === 0) {
                 noProductsMessage.classList.remove('hidden');
                 productGrid.classList.add('hidden');
             } else {
                 noProductsMessage.classList.add('hidden');
                 productGrid.classList.remove('hidden');
-                allProducts.forEach(product => {
+                productsCache.forEach(product => {
+                    // Only render 'Active' products on the storefront
+                    if (product.status !== 'Active') return;
+
                     let imageUrl = 'https://placehold.co/600x700/111111/ffffff?text=Image+Coming';
                     if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                         const primaryImage = product.images.find(img => img && img.isPrimary === true) || product.images[0];
@@ -629,7 +654,7 @@
                 productGrid.querySelectorAll('.add-to-cart-btn').forEach(button => {
                     button.addEventListener('click', (e) => {
                         const productId = e.currentTarget.dataset.productId;
-                        const product = allProducts.find(p => p.id === productId);
+                        const product = productsCache.find(p => p.id === productId);
                         if (product) {
                             const hasOptions = (product.sizes && product.sizes.length > 0) || (product.colors && product.colors.length > 0);
                             if (hasOptions) {
@@ -659,7 +684,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            await initializeLocalization();
+            await initializeLocalizationAndData();
             loadCartFromStorage();
 
             const currentYearEl = document.getElementById('current-year');
@@ -677,7 +702,7 @@
             }
 
             if (cartCheckoutButton) {
-                cartCheckoutButton.addEventListener('click', () => {
+                cartCheckoutButton.addEventListener('click', async () => {
                     if (cartItems.length === 0) {
                         showToast('Your cart is empty.');
                         return;
@@ -693,32 +718,25 @@
                     }
 
                     try {
-                        let newsletterSignups = JSON.parse(localStorage.getItem('triumindNewsletterSignups')) || [];
-                        if (!newsletterSignups.includes(email)) {
-                            newsletterSignups.push(email);
-                            localStorage.setItem('triumindNewsletterSignups', JSON.stringify(newsletterSignups));
-                            showToast('Email saved for newsletter!');
-                        }
+                        await addDoc(newsletterCollection, { email: email, timestamp: new Date() });
+                        showToast('Email saved for newsletter!');
                     } catch (e) {
                         console.error("Error saving email to newsletter list:", e);
                     }
 
                     showToast('Proceeding to checkout (simulation)...');
                     const newOrder = {
-                        id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                         timestamp: new Date().toISOString(),
-                        items: [...cartItems],
+                        items: cartItems,
                         totalAmount: cartItems.reduce((total, item) => total + (item.price * item.quantity), 0),
                         customerName: "Guest User (All Gear Page)",
                         customerEmail: email,
                         status: "Processing"
                     };
                     try {
-                        let orders = JSON.parse(localStorage.getItem('triumindOrders')) || [];
-                        orders.push(newOrder);
-                        localStorage.setItem('triumindOrders', JSON.stringify(orders));
+                        await addDoc(ordersCollection, newOrder);
                     } catch (e) {
-                        console.error("Error saving order to localStorage:", e);
+                        console.error("Error saving order to Firestore:", e);
                         showToast('Error placing order. Please try again.');
                         return;
                     }
@@ -728,14 +746,13 @@
                         renderCart();
                         if(cartCustomerEmailInputAllGear) cartCustomerEmailInputAllGear.value = '';
                         closeCart();
-                        showToast('Order placed (simulation)! Thank you.');
+                        showToast('Order placed! Thank you.');
                     }, 1500);
                 });
             }
 
             window.addEventListener('storage', (event) => {
                 if (event.key === 'triumindCart') { loadCartFromStorage(); }
-                if (event.key === 'triumindProducts') { renderAllProducts(); }
             });
 
             document.addEventListener('keydown', (event) => {
@@ -797,7 +814,6 @@
             function initializeAnimatedButtons() {
                 const buttonsToAnimate = document.querySelectorAll('.triumind-animated-button');
                 buttonsToAnimate.forEach(button => {
-                    // Check if this button has already been initialized for animation
                     if (button.dataset.animationInitialized === 'true') {
                         return;
                     }
