@@ -318,7 +318,7 @@
         <header class="admin-header-bar">
             <div class="flex justify-between items-center">
                 <h1 id="current-section-title" class="title text-glow">Dashboard</h1>
-                <div class="flex items-center space-x-4"><span class="user-info">Operator: Unit 734</span><div class="avatar">A</div></div>
+                <div class="flex items-center space-x-4"><span id="user-info" class="user-info">Operator: Unit 734</span><div class="avatar">A</div></div>
             </div>
         </header>
         <div class="page-content-wrapper">
@@ -338,8 +338,8 @@
                         <p id="dashboard-product-count" class="card-value">0</p>
                     </div>
                     <div class="card">
-                        <h3 class="card-title"><i class="fas fa-users"></i>Network Pings (24h)</h3>
-                        <p class="card-value">0</p> 
+                        <h3 class="card-title"><i class="fas fa-users"></i>Newsletter Subs</h3>
+                        <p id="dashboard-newsletter-count" class="card-value">0</p> 
                     </div>
                 </div>
             </section>
@@ -403,7 +403,7 @@
                             <div id="image-upload-trigger" class="image-upload-container mb-2"><i class="fas fa-cloud-upload-alt text-3xl text-[var(--admin-text-secondary)]"></i><p class="text-sm text-[var(--admin-text-secondary)] mt-1">Click or Drag & Drop Images Here</p></div>
                             <input type="file" id="product-images-input" multiple accept="image/jpeg, image/png, image/webp, image/gif" class="hidden">
                             <div id="image-preview-grid" class="image-preview-grid"></div>
-                            <small class="text-xs text-[var(--admin-text-secondary)] mt-2 block">Max 5 images. First image is primary. Stored locally (Base64).</small>
+                            <small class="text-xs text-[var(--admin-text-secondary)] mt-2 block">Max 5 images. First image is primary. Images are stored as Base64 text; large files may impact performance.</small>
                         </div>
                         <div class="flex justify-end space-x-3 pt-3">
                             <button type="button" id="cancel-add-product" class="btn btn-secondary">Abort</button>
@@ -591,7 +591,7 @@
             <section id="settings-section" class="admin-section hidden">
                 <h2 class="section-title text-glow">System Configuration</h2>
                 <div class="card">
-                    <form class="space-y-5">
+                    <form id="site-settings-form" class="space-y-5">
                         <div><label for="site-name" class="form-label">System Codename</label><input type="text" id="site-name" name="site-name" class="form-input" value="Triumind Collective OS"></div>
                         <div><label for="contact-email" class="form-label">Comms Channel (Public)</label><input type="email" id="contact-email" name="contact-email" class="form-input" value="operator@triumind.co"></div>
                         <div class="pt-3"><button type="submit" class="btn btn-primary w-full"><i class="fas fa-save mr-2"></i>Commit Changes</button></div>
@@ -679,9 +679,114 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, 
+            onSnapshot, collection, query, where, writeBatch 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    <script>
-        // Admin Panel Navigation
+        // --- Firebase Initialization ---
+        let db, auth, app;
+        let userId; // To store the authenticated user's ID
+        let productsCache = []; // Local cache for products to avoid re-fetching constantly
+
+        // These global variables are expected to be provided by the Canvas environment.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'triumind-dev';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+
+            apiKey: "AIzaSyBuFYZ_-8fL3jKOYUSWspd7aeTFq-QoF6E",
+
+            authDomain: "triumind-store1.firebaseapp.com",
+
+            projectId: "triumind-store1",
+
+            storageBucket: "triumind-store1.firebasestorage.app",
+
+            messagingSenderId: "945278061272",
+
+            appId: "1:945278061272:web:c515b911cd680f4b56e5ad"
+
+        };
+        
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            console.log("Firebase initialized successfully.");
+        } catch (e) {
+            console.error("Error initializing Firebase:", e);
+            document.body.innerHTML = '<div style="color: red; padding: 2rem;">Error initializing Firebase. Please check your configuration and console for details.</div>';
+        }
+
+        // --- Authentication ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                // User is signed in.
+                userId = user.uid;
+                console.log("User is signed in with UID:", userId);
+                const userInfoEl = document.getElementById('user-info');
+                if (userInfoEl) {
+                    userInfoEl.textContent = `Operator UID: ${userId.substring(0, 8)}...`;
+                }
+                // Once authenticated, start loading all the data
+                initializeAppState();
+            } else {
+                // User is signed out. Attempt to sign in.
+                console.log("User is signed out. Attempting to sign in...");
+                signIn();
+            }
+        });
+
+        async function signIn() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                    console.log("Signed in with custom token.");
+                } else {
+                    await signInAnonymously(auth);
+                    console.log("Signed in anonymously.");
+                }
+            } catch (error) {
+                console.error("Authentication failed:", error);
+                alert("Could not authenticate with the server. Please refresh the page.");
+            }
+        }
+
+
+        // --- Firestore Collection References ---
+        const productsCollection = collection(db, `artifacts/${appId}/public/data/products`);
+        const reviewsCollection = collection(db, `artifacts/${appId}/public/data/reviews`);
+        const messagesCollection = collection(db, `artifacts/${appId}/public/data/contactMessages`);
+        const ordersCollection = collection(db, `artifacts/${appId}/public/data/orders`);
+        const newsletterCollection = collection(db, `artifacts/${appId}/public/data/newsletterSignups`);
+        const settingsDoc = (docId) => doc(db, `artifacts/${appId}/public/data/settings/${docId}`);
+
+        // --- Global State Management ---
+        function initializeAppState() {
+            // Setup real-time listeners for all data
+            listenForProducts();
+            listenForReviews();
+            listenForMessages();
+            listenForOrders();
+            listenForNewsletter();
+            listenForSettings();
+            
+            // Initial render based on the default view
+            const initialAdminActiveLinkFromLoad = document.querySelector('.sidebar .nav-link.active');
+            if (initialAdminActiveLinkFromLoad && initialAdminActiveLinkFromLoad.getAttribute('data-target')) {
+                 showAdminSection(initialAdminActiveLinkFromLoad.getAttribute('data-target'));
+            } else if (adminNavLinks.length > 0 && adminNavLinks[0].getAttribute('data-target')) {
+                adminNavLinks[0].classList.add('active'); 
+                showAdminSection(adminNavLinks[0].getAttribute('data-target'));
+            }
+        }
+
+
+        // --- Admin Panel Navigation (No changes needed here) ---
         const adminNavLinks = document.querySelectorAll('.sidebar .nav-link');
         const adminSections = document.querySelectorAll('.admin-section');
         const adminCurrentSectionTitle = document.getElementById('current-section-title');
@@ -691,26 +796,8 @@
             const sectionToShow = document.getElementById(targetId);
             if (sectionToShow) {
                 sectionToShow.classList.remove('hidden');
-                // Load data for specific sections when they are shown
-                if (targetId === 'newsletter-admin-section') { 
-                    loadNewsletterEmails();
-                }
-                if (targetId === 'stories-admin-section') { 
-                    initializeStorySlots();
-                }
-                if (targetId === 'drops-section') { 
-                    populateDropActivationProductSelector(); 
-                    loadCurrentCountdownSettings();
-                }
-                if (targetId === 'sections-section') {
-                    loadSectionVisibilitySettings(); 
-                    populateFeaturedProductSelectors();
-                }
-                if (targetId === 'reviews-admin-section') {
-                    renderReviewsTable();
-                }
-                if (targetId === 'messages-admin-section') {
-                    renderMessagesTable();
+                if (targetId === 'drops-section' || targetId === 'sections-section') {
+                    populateProductSelectors();
                 }
             }
             const activeLink = document.querySelector(`.nav-link[data-target="${targetId}"]`);
@@ -719,9 +806,7 @@
 
         adminNavLinks.forEach(link => {
             link.addEventListener('click', (e) => {
-                if (link.id === 'admin-logout-button') {
-                    return; 
-                }
+                if (link.id === 'admin-logout-button') return; 
                 e.preventDefault();
                 const targetId = link.getAttribute('data-target');
                 if (targetId) {
@@ -732,531 +817,65 @@
             });
         });
         
-        function printShippingInfo(orderId) {
-            const order = getOrders().find(o => o.id === orderId);
-            if (!order) {
-                alert('Order not found!');
-                return;
-            }
-
-            let itemsHtml = '<p>No items information available.</p>';
-            if (order.items && Array.isArray(order.items) && order.items.length > 0) {
-                itemsHtml = '<ul>';
-                order.items.forEach(item => {
-                    itemsHtml += `<li>${item.name} (Qty: ${item.quantity}, Size: ${item.selectedSize || 'N/A'}, Color: ${item.selectedColor || 'N/A'})</li>`;
-                });
-                itemsHtml += '</ul>';
-            } else if (order.items && typeof order.items === 'object' && !Array.isArray(order.items)) {
-                 // Fallback for potentially different items structure if any - this was seen in some order objects
-                itemsHtml = '<ul>';
-                for (const key in order.items) { 
-                    if (order.items.hasOwnProperty(key)) {
-                        const item = order.items[key];
-                        const itemName = item.name || key;
-                        const itemQty = item.quantity || 1;
-                        const itemSize = item.selectedSize || item.size || 'N/A';
-                        const itemColor = item.selectedColor || item.color || 'N/A';
-                        itemsHtml += `<li>${itemName} (Qty: ${itemQty}, Size: ${itemSize}, Color: ${itemColor})</li>`;
-                    }
-                }
-                itemsHtml += '</ul>';
-            }
-
-
-            const printWindow = window.open('', '_blank', 'height=700,width=800');
-            printWindow.document.write('<html><head><title>Print Shipping Label - Order ' + order.id + '</title>');
-            printWindow.document.write(`
-                <style>
-                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .label-container { 
-                        border: 1px solid #ddd; 
-                        padding: 20px; 
-                        width: 90%; 
-                        max-width: 750px; 
-                        margin: 20px auto; 
-                        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-                        background: #fff;
-                    }
-                    .header-section { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 15px; }
-                    .logo { font-weight: bold; font-size: 28px; color: #333; }
-                    .order-id-main { text-align: right; font-size: 14px; color: #555; }
-                    .order-id-main strong { font-size: 16px; color: #000; }
-                    .section { margin-bottom: 20px; padding-bottom:15px; border-bottom: 1px dashed #ccc; }
-                    .section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0;}
-                    .section h2 { 
-                        font-size: 16px; 
-                        font-weight: 600; 
-                        color: #444; 
-                        margin-top: 0; 
-                        margin-bottom: 10px; 
-                        border-bottom: 1px solid #eee; 
-                        padding-bottom: 5px;
-                    }
-                    .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 5px 10px; }
-                    .info-grid p { margin: 2px 0; font-size: 14px; }
-                    .info-grid strong { font-weight: 600; color: #333; }
-                    .address { white-space: pre-line; } /* To respect newlines in address */
-                    .items-ordered ul { list-style-type: none; padding-left: 0; margin-top: 5px; }
-                    .items-ordered li { font-size: 13px; padding: 4px 0; border-bottom: 1px dotted #eee; }
-                    .items-ordered li:last-child { border-bottom: none; }
-                    .footer-note { text-align: center; font-size: 12px; color: #777; margin-top: 25px; }
-                    .print-button-container { text-align: center; margin-top: 20px; }
-                    .print-button { padding: 10px 20px; font-size: 16px; background-color: var(--admin-accent-primary, #8B5CF6); color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }
-                    .print-button:hover { background-color: #7C3AED; }
-
-                    @media print {
-                        body { margin: 0; padding: 0; background: #fff; }
-                        .label-container { border: none; box-shadow: none; width: 100%; max-width: 100%; margin: 0; padding: 10px; }
-                        .print-button-container { display: none; }
-                        .footer-note { display: none; }
-                    }
-                </style>
-            `);
-            
-           
+        // --- Utility Functions ---
+        function showAdminAlert(message, type = 'error') {
+            const alertContainer = document.body;
+            const alertEl = document.createElement('div');
+            alertEl.textContent = message;
+            alertEl.style.position = 'fixed';
+            alertEl.style.bottom = '20px';
+            alertEl.style.left = '50%';
+            alertEl.style.transform = 'translateX(-50%)';
+            alertEl.style.padding = '10px 20px';
+            alertEl.style.borderRadius = '5px';
+            alertEl.style.color = 'white';
+            alertEl.style.zIndex = '9999';
+            alertEl.style.backgroundColor = type === 'success' ? 'var(--admin-accent-primary)' : '#ef4444';
+            alertContainer.appendChild(alertEl);
+            setTimeout(() => alertEl.remove(), 4000);
         }
 
-        // --- Messages Management ---
-        const messagesTableBody = document.getElementById('messages-table-body');
-        const noMessagesAdminMessage = document.getElementById('no-messages-admin-message');
-
-        function getMessages() {
-            return JSON.parse(localStorage.getItem('triumindContactMessages')) || [];
-        }
-
-        function saveMessages(messages) {
-            localStorage.setItem('triumindContactMessages', JSON.stringify(messages));
-            renderMessagesTable(); // Re-render after saving
-        }
-
-        function renderMessagesTable() {
-            if (!messagesTableBody) return;
-            messagesTableBody.innerHTML = '';
-            const messages = getMessages();
-
-            if (messages.length === 0) {
-                if (noMessagesAdminMessage) noMessagesAdminMessage.classList.remove('hidden');
-                return;
-            }
-            if (noMessagesAdminMessage) noMessagesAdminMessage.classList.add('hidden');
-
-            messages.forEach(msg => {
-                const row = messagesTableBody.insertRow();
-                const timestamp = new Date(msg.timestamp).toLocaleString();
-                row.innerHTML = `
-                    <td class="text-sm">${timestamp}</td>
-                    <td><a href="mailto:${msg.email}" class="text-purple-400 hover:underline">${msg.email}</a></td>
-                    <td class="text-sm max-w-md whitespace-pre-wrap">${msg.message}</td>
-                    <td>
-                        <button class="btn btn-danger btn-sm delete-message-btn" data-message-id="${msg.id}"><i class="fas fa-trash"></i></button>
-                    </td>
-                `;
-            });
-
-            document.querySelectorAll('.delete-message-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const messageId = this.dataset.messageId;
-                    deleteMessage(messageId);
-                });
-            });
-        }
-        
-        function deleteMessage(messageId) {
-             if (!confirm('Are you sure you want to delete this message?')) return;
-             let messages = getMessages();
-             messages = messages.filter(msg => msg.id !== messageId);
-             saveMessages(messages);
-        }
-        
-        // --- Review Management ---
-        const reviewsTableBody = document.getElementById('reviews-table-body');
-        const noReviewsAdminMessage = document.getElementById('no-reviews-admin-message');
-
-        function getReviews() {
-            return JSON.parse(localStorage.getItem('triumindProductReviews')) || {};
-        }
-
-        function saveReviews(reviews) {
-            localStorage.setItem('triumindProductReviews', JSON.stringify(reviews));
-            renderReviewsTable();
-        }
-
-        function renderReviewsTable() {
-            if (!reviewsTableBody) return;
-            reviewsTableBody.innerHTML = '';
-            const allReviewsObject = getReviews();
-            const allReviewsFlat = Object.values(allReviewsObject).flat();
-
-            if (allReviewsFlat.length === 0) {
-                if(noReviewsAdminMessage) noReviewsAdminMessage.classList.remove('hidden');
-                return;
-            }
-            if(noReviewsAdminMessage) noReviewsAdminMessage.classList.add('hidden');
-
-            allReviewsFlat.sort((a,b) => new Date(b.date) - new Date(a.date));
-
-            allReviewsFlat.forEach(review => {
-                const row = reviewsTableBody.insertRow();
-                const ratingStars = '<span class="review-stars">' + '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating) + '</span>';
-
-                row.innerHTML = `
-                    <td>${review.name}</td>
-                    <td>${ratingStars}</td>
-                    <td class="text-sm max-w-xs truncate" title="${review.text}">${review.text}</td>
-                    <td>${review.productName}</td>
-                    <td>
-                        <label class="toggle-switch">
-                            <input type="checkbox" class="feature-review-toggle" data-review-id="${review.id}" data-product-id="${review.productId}" ${review.isFeatured ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </td>
-                    <td>
-                        <button class="btn btn-danger btn-sm delete-review-btn" data-review-id="${review.id}" data-product-id="${review.productId}"><i class="fas fa-trash"></i></button>
-                    </td>
-                `;
-            });
-
-            document.querySelectorAll('.delete-review-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const reviewId = this.dataset.reviewId;
-                    const productId = this.dataset.productId;
-                    deleteReview(productId, reviewId);
-                });
-            });
-
-            document.querySelectorAll('.feature-review-toggle').forEach(toggle => {
-                toggle.addEventListener('change', function() {
-                    const reviewId = this.dataset.reviewId;
-                    const productId = this.dataset.productId;
-                    const isFeatured = this.checked;
-                    toggleFeaturedStatus(productId, reviewId, isFeatured);
-                });
-            });
-        }
-
-        function deleteReview(productId, reviewId) {
-            if (!confirm('Are you sure you want to delete this review?')) return;
-
-            const allReviews = getReviews();
-            if (allReviews[productId]) {
-                allReviews[productId] = allReviews[productId].filter(review => review.id !== reviewId);
-                if (allReviews[productId].length === 0) {
-                    delete allReviews[productId];
-                }
-                saveReviews(allReviews);
-            }
-        }
-        
-        function toggleFeaturedStatus(productId, reviewId, isFeatured) {
-            const allReviews = getReviews();
-            if (allReviews[productId]) {
-                const reviewIndex = allReviews[productId].findIndex(review => review.id === reviewId);
-                if (reviewIndex > -1) {
-                    allReviews[productId][reviewIndex].isFeatured = isFeatured;
-                    saveReviews(allReviews);
-                }
-            }
-        }
-
-
-        // --- Section Customization Logic (Visibility & Featured Products) ---
-        const sectionVisibilityForm = document.getElementById('section-visibility-form');
-        const saveCustomizationSettingsButton = document.getElementById('save-customization-settings');
-
-        const sectionToggles = {
-            countdownVisible: document.getElementById('countdownVisible'), gearVisible: document.getElementById('gearVisible'),
-            storiesVisible: document.getElementById('storiesVisible'), reviewsVisible: document.getElementById('reviewsVisible'),
-            newsletterVisible: document.getElementById('newsletterVisible'), contactVisible: document.getElementById('contactVisible'),
-        };
-        const featuredGearCheckboxContainer = document.getElementById('featured-gear-checkbox-container');
-        const featuredDropCheckboxContainer = document.getElementById('featured-drop-checkbox-container');
-
-        function loadSectionVisibilitySettings() {
-            const settings = JSON.parse(localStorage.getItem('triumindSectionVisibility')) || {};
-            for (const key in sectionToggles) { 
-                if (sectionToggles[key]) { 
-                    sectionToggles[key].checked = settings[key] !== undefined ? settings[key] : true; 
-                } 
-            }
-        }
-        
-        function populateFeaturedProductSelectors() {
-            const products = getProducts().filter(p => p.status === 'Active');
-            const featuredSettings = JSON.parse(localStorage.getItem('triumindFeaturedProducts')) || {};
-            const gearProductIds = featuredSettings.gearSectionProductIds || [];
-            const dropProductIds = featuredSettings.dropSectionProductIds || [];
-            
-            [featuredGearCheckboxContainer, featuredDropCheckboxContainer].forEach((container) => {
-                if (!container) return;
-                container.innerHTML = '';
-                if (products.length === 0) {
-                    container.innerHTML = '<p class="text-[var(--admin-text-secondary)] text-sm p-2">No active products available.</p>';
-                    return;
-                }
-
-                let selectedIds = [];
-                if (container.id === 'featured-gear-checkbox-container') {
-                    selectedIds = gearProductIds;
-                } else if (container.id === 'featured-drop-checkbox-container') {
-                    selectedIds = dropProductIds;
-                }
-
-                products.forEach(product => {
-                    const checkboxId = `featured-${container.id}-${product.id}`;
-                    const label = document.createElement('label');
-                    label.htmlFor = checkboxId;
-                    label.className = 'form-checkbox-label';
-
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.id = checkboxId;
-                    checkbox.value = product.id;
-                    checkbox.className = 'form-checkbox-input';
-                    if (selectedIds.includes(product.id)) {
-                        checkbox.checked = true;
-                    }
-                    
-                    const span = document.createElement('span');
-                    span.textContent = product.name;
-
-                    label.appendChild(checkbox);
-                    label.appendChild(span);
-                    container.appendChild(label);
-                });
-            });
-        }
-
-        if (saveCustomizationSettingsButton) {
-            saveCustomizationSettingsButton.addEventListener('click', function() {
-                // Save visibility settings
-                const newVisibilitySettings = {};
-                for (const key in sectionToggles) { 
-                    if (sectionToggles[key]) { 
-                        newVisibilitySettings[key] = sectionToggles[key].checked; 
-                    } 
-                }
-                localStorage.setItem('triumindSectionVisibility', JSON.stringify(newVisibilitySettings));
-
-                // Save featured product settings
-                const selectedGearProductIds = Array.from(featuredGearCheckboxContainer.querySelectorAll('input:checked')).map(cb => cb.value);
-                const selectedDropProductIds = Array.from(featuredDropCheckboxContainer.querySelectorAll('input:checked')).map(cb => cb.value);
-
-                if (selectedGearProductIds.length > 3) {
-                    const errorMsgEl = document.createElement('p');
-                    errorMsgEl.textContent = 'Max 3 products allowed for Main Gear Section.';
-                    errorMsgEl.className = 'text-red-400 text-sm mt-2 text-center';
-                    saveCustomizationSettingsButton.parentNode.insertBefore(errorMsgEl, saveCustomizationSettingsButton);
-                    setTimeout(() => errorMsgEl.remove(), 4000);
-                    return;
-                }
-
-                const newFeaturedSettings = {
-                    gearSectionProductIds: selectedGearProductIds.slice(0, 3),
-                    dropSectionProductIds: selectedDropProductIds
-                };
-                localStorage.setItem('triumindFeaturedProducts', JSON.stringify(newFeaturedSettings));
-                
-                const successMsg = document.createElement('p');
-                successMsg.textContent = 'All customization settings saved! Refresh main site.';
-                successMsg.className = 'text-green-400 text-sm mt-2 text-center';
-                saveCustomizationSettingsButton.parentNode.insertBefore(successMsg, saveCustomizationSettingsButton);
-                setTimeout(() => successMsg.remove(), 3000);
-            });
-        }
-
-
-        // START: Reworked Countdown Logic
-        const adminDropForm = document.getElementById('adminDropForm');
-        const adminCurrentCountdownDisplay = document.getElementById('current-countdown-display');
-        const dropFormFeedback = document.getElementById('drop-form-feedback');
-        const stopCountdownBtn = document.getElementById('stop-countdown-btn');
-
-        function populateDropActivationProductSelector() {
-            const checkboxContainer = document.getElementById('drop-activation-products-checkbox-container');
-            if (!checkboxContainer) return;
-            checkboxContainer.innerHTML = '';
-            const products = getProducts();
-            const draftProducts = products.filter(p => p.status === 'Draft');
-
-            if (draftProducts.length === 0) {
-                checkboxContainer.innerHTML = '<p class="text-[var(--admin-text-secondary)] text-sm p-2">No DRAFT products available to attach.</p>';
-                return;
-            }
-
-            const savedSettings = JSON.parse(localStorage.getItem('triumindCountdownSettings')) || {};
-            const selectedIds = savedSettings.productIdsForActivation || [];
-
-            draftProducts.forEach(product => {
-                const checkboxId = `drop-product-${product.id}`;
-                const label = document.createElement('label');
-                label.htmlFor = checkboxId;
-                label.className = 'form-checkbox-label';
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.id = checkboxId;
-                checkbox.value = product.id;
-                checkbox.className = 'form-checkbox-input';
-                if (selectedIds.includes(product.id)) {
-                    checkbox.checked = true;
-                }
-
-                const span = document.createElement('span');
-                span.textContent = `${product.name} (Draft)`;
-
-                label.appendChild(checkbox);
-                label.appendChild(span);
-                checkboxContainer.appendChild(label);
-            });
-        }
-        
-        function loadCurrentCountdownSettings() {
-             const savedSettings = JSON.parse(localStorage.getItem('triumindCountdownSettings')) || {};
-             const alsoFeatureCheckbox = document.getElementById('also-feature-in-gear');
-
-             if (savedSettings.target && adminCurrentCountdownDisplay) {
-                const savedDate = new Date(parseInt(savedSettings.target));
-                if (!isNaN(savedDate.getTime()) && savedDate.getTime() > Date.now()) { 
-                    const mode = (savedSettings.mode || 'section').replace(/^\w/, c => c.toUpperCase());
-                    adminCurrentCountdownDisplay.textContent = `T-Minus: ${savedDate.toLocaleString()} (Mode: ${mode})`;
-                    const modeRadio = adminDropForm.querySelector(`input[name="countdownMode"][value="${savedSettings.mode || 'section'}"]`);
-                    if (modeRadio) modeRadio.checked = true;
-                    if (alsoFeatureCheckbox) {
-                        alsoFeatureCheckbox.checked = savedSettings.alsoFeatureInGear === true;
-                    }
-                } else {
-                     adminCurrentCountdownDisplay.textContent = "T-Minus: Not Set or Expired";
-                     localStorage.removeItem('triumindCountdownSettings'); 
-                }
-            } else {
-                 adminCurrentCountdownDisplay.textContent = "T-Minus: Not Set";
-                 if (alsoFeatureCheckbox) alsoFeatureCheckbox.checked = false;
-            }
-        }
-
-
-        if (adminDropForm) {
-            adminDropForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const adminDropDateInput = document.getElementById('drop-date');
-                const adminDropTimeInput = document.getElementById('drop-time');
-                const alsoFeatureCheckbox = document.getElementById('also-feature-in-gear');
-                
-                const selectedProductIdsForActivation = Array.from(document.querySelectorAll('#drop-activation-products-checkbox-container input[type="checkbox"]:checked'))
-                                                          .map(checkbox => checkbox.value);
-
-                let isValid = true;
-                let feedback = '';
-
-                if (!adminDropDateInput.value || !adminDropTimeInput.value) {
-                    feedback = 'Please set a valid date and time.';
-                    isValid = false;
-                } else if (selectedProductIdsForActivation.length === 0) {
-                    feedback = 'You must select at least one DRAFT product to activate for the drop.';
-                    isValid = false;
-                }
-
-                if (!isValid) {
-                    dropFormFeedback.textContent = feedback;
-                    dropFormFeedback.classList.remove('hidden');
-                    return;
-                }
-                
-                dropFormFeedback.classList.add('hidden');
-
-                const targetDateTime = new Date(`${adminDropDateInput.value}T${adminDropTimeInput.value}:00Z`); // Assume UTC
-                if (isNaN(targetDateTime.getTime()) || targetDateTime.getTime() <= Date.now()) {
-                    dropFormFeedback.textContent = 'Please select a date and time in the future.';
-                    dropFormFeedback.classList.remove('hidden');
-                    return;
-                }
-
-                const checkedRadio = adminDropForm.querySelector('input[name="countdownMode"]:checked');
-                const selectedMode = checkedRadio ? checkedRadio.value : 'section';
-
-                const newCountdownSettings = {
-                    target: targetDateTime.getTime().toString(),
-                    mode: selectedMode,
-                    productIdsForActivation: selectedProductIdsForActivation,
-                    alsoFeatureInGear: alsoFeatureCheckbox ? alsoFeatureCheckbox.checked : false 
-                };
-
-                localStorage.setItem('triumindCountdownSettings', JSON.stringify(newCountdownSettings));
-                
-                loadCurrentCountdownSettings();
-
-                dropFormFeedback.textContent = 'Countdown Synchronized! Refresh main site to see changes.';
-                dropFormFeedback.className = 'text-green-400 text-sm';
-                dropFormFeedback.classList.remove('hidden');
-                setTimeout(() => dropFormFeedback.classList.add('hidden'), 4000);
-            });
-        }
-        
-        if (stopCountdownBtn) {
-            stopCountdownBtn.addEventListener('click', () => {
-                if (confirm('Are you sure you want to stop the current countdown? This cannot be undone.')) {
-                    localStorage.removeItem('triumindCountdownSettings');
-                    loadCurrentCountdownSettings(); // This will now show "Not Set"
-                    if (dropFormFeedback) {
-                        dropFormFeedback.textContent = 'Countdown stopped and cleared.';
-                        dropFormFeedback.className = 'text-yellow-400 text-sm'; // Use a different color for stop
-                        dropFormFeedback.classList.remove('hidden');
-                        setTimeout(() => dropFormFeedback.classList.add('hidden'), 4000);
-                    }
-                }
-            });
-        }
-        // END: Reworked Countdown Logic
-        
-        // Product Management Logic
+        // --- Product Management ---
         const productForm = document.getElementById('product-form');
         const productFormTitle = document.getElementById('product-form-title');
         const productFormSubmitBtn = document.getElementById('product-form-submit-btn');
         const editingProductIdInput = document.getElementById('editing-product-id');
-        
         const productTableBody = document.getElementById('product-table-body');
         const toggleAddProductFormButton = document.getElementById('toggle-add-product-form');
         const addProductFormContainer = document.getElementById('add-product-form-container');
         const cancelAddProductButton = document.getElementById('cancel-add-product');
         const noProductsMessage = document.getElementById('no-products-message');
-        const dashboardProductCountEl = document.getElementById('dashboard-product-count');
         const productImagesInput = document.getElementById('product-images-input');
         const imagePreviewGrid = document.getElementById('image-preview-grid');
         const imageUploadTrigger = document.getElementById('image-upload-trigger');
-        let currentProductImages = []; 
-        let currentSizeGuideData = null;
-        
         const productSizesInput = document.getElementById('product-sizes');
         const productColorsListEditor = document.getElementById('product-colors-list-editor');
         const addProductColorBtn = document.getElementById('add-product-color-btn');
-
-        // START: Country Pricing Elements & Data
         const countryPricesList = document.getElementById('country-prices-list');
         const addCountryPriceBtn = document.getElementById('add-country-price-btn');
+        let currentProductImages = []; 
+        let currentSizeGuideData = null;
+
         const countryData = [
             { code: "US", name: "United States" }, { code: "CA", name: "Canada" }, { code: "GB", name: "United Kingdom" },
             { code: "AU", name: "Australia" }, { code: "DE", name: "Germany" }, { code: "FR", name: "France" },
             { code: "JP", name: "Japan" }, { code: "AE", name: "United Arab Emirates" }, { code: "CN", name: "China" },
             { code: "IN", name: "India" }, { code: "BR", name: "Brazil" }, { code: "ZA", name: "South Africa" }
         ];
-        // END: Country Pricing Elements & Data
-        
-        if (imageUploadTrigger && productImagesInput) { 
-            imageUploadTrigger.addEventListener('click', () => productImagesInput.click()); 
-            productImagesInput.addEventListener('change', handleImageUpload); 
+
+        function listenForProducts() {
+            onSnapshot(productsCollection, (snapshot) => {
+                productsCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderProductsTable();
+                updateDashboardMetrics();
+                populateProductSelectors();
+                console.log("Products listener updated.", productsCache.length, "products loaded.");
+            }, (error) => {
+                console.error("Error listening for product changes: ", error);
+                showAdminAlert("Failed to load products in real-time.");
+            });
         }
-        
-        function getProducts() { return JSON.parse(localStorage.getItem('triumindProducts')) || []; }
-        function saveProducts(products) { 
-            try { 
-                localStorage.setItem('triumindProducts', JSON.stringify(products)); 
-                populateDropActivationProductSelector(); 
-                populateFeaturedProductSelectors();
-            } catch (e) { 
-                console.error("Error saving products to localStorage:", e); 
-            } 
-        }
-        
+
         function resetProductForm() {
             if (productForm) productForm.reset();
             currentProductImages = [];
@@ -1269,149 +888,224 @@
             if (toggleAddProductFormButton) toggleAddProductFormButton.innerHTML = '<i class="fas fa-plus-circle mr-2"></i> Deploy New Unit';
             if (productSizesInput) productSizesInput.value = ''; 
             renderColorEntries([]);
-            renderCountryPriceEntries([]); // NEW: Clear country price fields
+            renderCountryPriceEntries([]);
         }
 
-        function createColorEntryRow(color = { name: '', hex: '' }) {
-            const entryDiv = document.createElement('div');
-            entryDiv.className = 'flex items-center space-x-2 product-color-entry';
+        function renderProductsTable() {
+            if (!productTableBody) return;
+            productTableBody.innerHTML = '';
+            noProductsMessage.classList.toggle('hidden', productsCache.length > 0);
 
-            const nameInput = document.createElement('input');
-            nameInput.type = 'text';
-            nameInput.className = 'form-input product-color-name flex-grow';
-            nameInput.placeholder = 'Color Name (e.g., Midnight Black)';
-            nameInput.value = color.name;
-
-            const hexInput = document.createElement('input');
-            hexInput.type = 'text'; 
-            hexInput.className = 'form-input product-color-hex w-32';
-            hexInput.placeholder = '#RRGGBB';
-            hexInput.value = color.hex;
-            hexInput.pattern = '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$';
-
-            const colorPicker = document.createElement('input');
-            colorPicker.type = 'color';
-            colorPicker.className = 'product-color-picker w-8 h-8 p-0 border-none cursor-pointer';
-            colorPicker.value = color.hex || '#000000';
-            colorPicker.addEventListener('input', (e) => {
-                hexInput.value = e.target.value.toUpperCase();
+            productsCache.forEach(product => {
+                let primaryImageUrl = 'https://placehold.co/100x100/333/ccc?text=N/A';
+                if (product.images && product.images.length > 0) {
+                    const primaryImg = product.images.find(img => img.isPrimary) || product.images[0];
+                    if (primaryImg && primaryImg.dataUrl) primaryImageUrl = primaryImg.dataUrl;
+                }
+                const row = productTableBody.insertRow();
+                row.innerHTML = `
+                    <td><img src="${primaryImageUrl}" alt="${product.name}" class="product-thumbnail-small"></td>
+                    <td>${product.name}</td>
+                    <td>${product.sku || 'N/A'}</td>
+                    <td>$${parseFloat(product.price).toFixed(2)}</td>
+                    <td>${product.stock}</td>
+                    <td><span class="status-badge ${product.status === 'Draft' ? 'status-badge-draft' : 'status-badge-active'}">${product.status}</span></td>
+                    <td class="space-x-1">
+                        <button class="btn btn-secondary btn-sm btn-edit-product" data-id="${product.id}"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger btn-sm btn-delete-product" data-id="${product.id}"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
             });
-            hexInput.addEventListener('input', (e) => {
-                 if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(e.target.value)) {
-                    colorPicker.value = e.target.value;
-                 }
+            
+            document.querySelectorAll('.btn-delete-product').forEach(button => { 
+                button.addEventListener('click', function() { deleteProduct(this.getAttribute('data-id')); }); 
             });
-
-
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.innerHTML = '<i class="fas fa-trash text-red-500"></i>';
-            removeBtn.className = 'btn-icon remove-color-entry-btn p-2';
-            removeBtn.title = 'Remove Color';
-            removeBtn.addEventListener('click', () => {
-                entryDiv.remove();
+            document.querySelectorAll('.btn-edit-product').forEach(button => {
+                button.addEventListener('click', function() { populateFormForEdit(this.getAttribute('data-id')); });
             });
-
-            entryDiv.appendChild(nameInput);
-            entryDiv.appendChild(hexInput);
-            entryDiv.appendChild(colorPicker);
-            entryDiv.appendChild(removeBtn);
-            return entryDiv;
         }
+        
+        async function deleteProduct(productId) {
+            if (!confirm('Are you sure you want to delete this product? This will also remove its reviews.')) return;
+            try {
+                // Delete the product document
+                await deleteDoc(doc(db, `artifacts/${appId}/public/data/products`, productId));
 
-        function renderColorEntries(colorsArray = []) {
-            if (!productColorsListEditor) return;
-            productColorsListEditor.innerHTML = ''; 
-            if (colorsArray && colorsArray.length > 0) {
-                colorsArray.forEach(color => {
-                    productColorsListEditor.appendChild(createColorEntryRow(color));
+                // Batch delete all reviews associated with the product
+                const productReviewsCollection = collection(db, `artifacts/${appId}/public/data/reviews`);
+                const q = query(productReviewsCollection, where("productId", "==", productId));
+                const querySnapshot = await getDocs(q);
+                const batch = writeBatch(db);
+                querySnapshot.forEach((doc) => {
+                    batch.delete(doc.ref);
                 });
+                await batch.commit();
+
+                showAdminAlert('Product and associated reviews deleted.', 'success');
+            } catch (error) {
+                console.error("Error deleting product: ", error);
+                showAdminAlert("Failed to delete product.");
             }
         }
 
-        if (addProductColorBtn && productColorsListEditor) {
-            addProductColorBtn.addEventListener('click', () => {
-                productColorsListEditor.appendChild(createColorEntryRow());
-            });
-        }
+        if (productForm) {
+             productForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                if (currentProductImages.length === 0) { 
+                    showAdminAlert("Please upload at least one product image."); 
+                    return; 
+                }
+                if (currentProductImages.length > 0 && !currentProductImages.some(img => img.isPrimary)) { 
+                    currentProductImages[0].isPrimary = true; 
+                }
 
-        // START: Country Price Functions
-        function createCountryPriceRow(priceEntry = { country: '', price: '' }) {
-            const entryDiv = document.createElement('div');
-            entryDiv.className = 'flex items-center space-x-2 country-price-entry';
+                const productName = document.getElementById('product-name').value;
+                const productPrice = document.getElementById('product-price').value;
+                const productStock = parseInt(document.getElementById('product-stock').value);
 
-            const countrySelect = document.createElement('select');
-            countrySelect.className = 'form-select country-price-country flex-grow';
-            countrySelect.innerHTML = '<option value="">Select Country</option>' + 
-                countryData.map(c => `<option value="${c.code}" ${priceEntry.country === c.code ? 'selected' : ''}>${c.name} (${c.code})</option>`).join('');
+                if (!productName || !productPrice || isNaN(productStock) || productStock < 0) { 
+                    showAdminAlert("Please fill all required product fields with valid data: Name, Price, Stock.");
+                    return; 
+                }
 
-            const priceInput = document.createElement('input');
-            priceInput.type = 'number';
-            priceInput.className = 'form-input country-price-value w-40';
-            priceInput.placeholder = 'Price';
-            priceInput.step = '0.01';
-            priceInput.min = '0';
-            priceInput.value = priceEntry.price;
+                const sizesString = productSizesInput ? productSizesInput.value : '';
+                const productSizesArray = sizesString.split(',').map(s => s.trim()).filter(s => s !== '');
 
-            const currencyLabel = document.createElement('span');
-            currencyLabel.className = 'text-sm text-[var(--admin-text-secondary)]';
-            currencyLabel.textContent = 'USD'; // Or dynamically change based on country
+                const collectedColors = [];
+                const colorEntryRows = productColorsListEditor.querySelectorAll('.product-color-entry');
+                let colorsValid = true;
+                colorEntryRows.forEach(row => {
+                    const nameInput = row.querySelector('.product-color-name');
+                    const hexInput = row.querySelector('.product-color-hex');
+                    const name = nameInput ? nameInput.value.trim() : '';
+                    const hex = hexInput ? hexInput.value.trim().toUpperCase() : '';
 
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.innerHTML = '<i class="fas fa-trash text-red-500"></i>';
-            removeBtn.className = 'btn-icon remove-country-price-btn p-2';
-            removeBtn.title = 'Remove Price';
-            removeBtn.addEventListener('click', () => entryDiv.remove());
+                    if (name && hex) {
+                        if (!/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex)) {
+                            showAdminAlert(`Invalid hex code format for color "${name}": ${hex}. Please use #RRGGBB or #RGB.`);
+                            if(hexInput) hexInput.focus();
+                            colorsValid = false;
+                            return;
+                        }
+                        collectedColors.push({ name, hex });
+                    } else if (name || hex) { 
+                        showAdminAlert('Both Color Name and Hex Code must be filled for each color entry.');
+                        if (!name && nameInput) nameInput.focus();
+                        else if (!hex && hexInput) hexInput.focus();
+                        colorsValid = false;
+                        return;
+                    }
+                });
+                if (!colorsValid) return; 
 
-            entryDiv.appendChild(countrySelect);
-            entryDiv.appendChild(priceInput);
-            entryDiv.appendChild(currencyLabel);
-            entryDiv.appendChild(removeBtn);
-            return entryDiv;
-        }
+                const collectedCountryPrices = [];
+                const countryPriceRows = countryPricesList.querySelectorAll('.country-price-entry');
+                let countryPricesValid = true;
+                countryPriceRows.forEach(row => {
+                    const countrySelect = row.querySelector('.country-price-country');
+                    const priceInput = row.querySelector('.country-price-value');
+                    const country = countrySelect ? countrySelect.value : '';
+                    const price = priceInput ? priceInput.value : '';
 
-        function renderCountryPriceEntries(pricesArray = []) {
-            if (!countryPricesList) return;
-            countryPricesList.innerHTML = '';
-            if (pricesArray && pricesArray.length > 0) {
-                pricesArray.forEach(price => countryPricesList.appendChild(createCountryPriceRow(price)));
-            }
-        }
+                    if (country && price) {
+                        collectedCountryPrices.push({ country, price });
+                    } else if (country || price) {
+                        showAdminAlert('Both Country and Price must be filled for each country price entry.');
+                        countryPricesValid = false;
+                        return;
+                    }
+                });
+                if (!countryPricesValid) return;
+                                
+                const editingId = editingProductIdInput ? editingProductIdInput.value : '';
+                
+                const productData = {
+                    name: productName,
+                    description: document.getElementById('product-description').value,
+                    price: parseFloat(productPrice),
+                    countryPrices: collectedCountryPrices,
+                    sku: document.getElementById('product-sku').value,
+                    stock: productStock,
+                    status: document.getElementById('product-status').value,
+                    images: JSON.parse(JSON.stringify(currentProductImages)), 
+                    sizes: productSizesArray, 
+                    colors: collectedColors, 
+                    // FIX: Stringify the size guide data before saving
+                    sizeGuideData: currentSizeGuideData ? JSON.stringify(currentSizeGuideData) : null
+                };
 
-        if (addCountryPriceBtn) {
-            addCountryPriceBtn.addEventListener('click', () => {
-                countryPricesList.appendChild(createCountryPriceRow());
-            });
-        }
-        // END: Country Price Functions
-
-
-        if (toggleAddProductFormButton && addProductFormContainer) {
-            toggleAddProductFormButton.addEventListener('click', () => {
-                const isOpen = addProductFormContainer.classList.contains('open');
-                if (isOpen) { 
-                    addProductFormContainer.classList.remove('open');
+                try {
+                    if (editingId) { 
+                        const productRef = doc(db, `artifacts/${appId}/public/data/products`, editingId);
+                        await setDoc(productRef, productData, { merge: true });
+                        showAdminAlert('Product updated successfully!', 'success');
+                    } else { 
+                        await addDoc(productsCollection, productData);
+                        showAdminAlert('Product added successfully!', 'success');
+                    }
                     resetProductForm(); 
-                } else { 
-                    resetProductForm(); 
-                    addProductFormContainer.classList.add('open');
-                    if (toggleAddProductFormButton) toggleAddProductFormButton.innerHTML = '<i class="fas fa-minus-circle mr-2"></i> Cancel Deployment';
+                    if(addProductFormContainer) addProductFormContainer.classList.remove('open');
+                } catch (error) {
+                    console.error("Error saving product: ", error);
+                    showAdminAlert("Failed to save product to the database.");
                 }
             });
         }
 
-        if (cancelAddProductButton && addProductFormContainer) {
-            cancelAddProductButton.addEventListener('click', () => {
-                addProductFormContainer.classList.remove('open'); 
+        function populateFormForEdit(productId) {
+            const productToEdit = productsCache.find(p => p.id === productId);
+            if (!productToEdit) {
                 resetProductForm(); 
-            });
+                return;
+            }
+
+            if (editingProductIdInput) editingProductIdInput.value = productToEdit.id;
+            if (document.getElementById('product-name')) document.getElementById('product-name').value = productToEdit.name;
+            if (document.getElementById('product-description')) document.getElementById('product-description').value = productToEdit.description;
+            if (document.getElementById('product-price')) document.getElementById('product-price').value = productToEdit.price;
+            if (document.getElementById('product-sku')) document.getElementById('product-sku').value = productToEdit.sku || '';
+            if (document.getElementById('product-stock')) document.getElementById('product-stock').value = productToEdit.stock;
+            if (document.getElementById('product-status')) document.getElementById('product-status').value = productToEdit.status;
+
+            if (productSizesInput && productToEdit.sizes && Array.isArray(productToEdit.sizes)) {
+                productSizesInput.value = productToEdit.sizes.join(', ');
+            } else if (productSizesInput) {
+                productSizesInput.value = '';
+            }
+            renderColorEntries(productToEdit.colors || []);
+            renderCountryPriceEntries(productToEdit.countryPrices || []);
+
+            currentProductImages = productToEdit.images ? JSON.parse(JSON.stringify(productToEdit.images)) : []; 
+            // FIX: Parse the size guide data when loading for edit
+            try {
+                currentSizeGuideData = productToEdit.sizeGuideData ? JSON.parse(productToEdit.sizeGuideData) : null;
+            } catch(e) {
+                console.error("Error parsing size guide data for editing:", e);
+                currentSizeGuideData = null;
+            }
+
+            updateSizeGuideStatus(); 
+            renderImagePreviews();
+
+            if (productFormTitle) productFormTitle.textContent = 'Edit Product Deployment';
+            if (productFormSubmitBtn) productFormSubmitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Confirm Update';
+            if (toggleAddProductFormButton) toggleAddProductFormButton.innerHTML = '<i class="fas fa-minus-circle mr-2"></i> Cancel Edit';
+            
+            if (addProductFormContainer) addProductFormContainer.classList.add('open');
+            window.scrollTo({ top: addProductFormContainer.offsetTop - 100 , behavior: 'smooth' }); 
+        }
+
+        // --- All other form/UI handlers (image upload, color/country price rows, etc.) ---
+        if (imageUploadTrigger && productImagesInput) { 
+            imageUploadTrigger.addEventListener('click', () => productImagesInput.click()); 
+            productImagesInput.addEventListener('change', handleImageUpload); 
         }
         
         function handleImageUpload(event) {
             const files = event.target.files; if (!files) return;
             const maxImages = 5;
             if (currentProductImages.length + files.length > maxImages) { 
+                showAdminAlert(`You can only upload a maximum of ${maxImages} images.`);
                 return; 
             }
             Array.from(files).forEach(file => {
@@ -1488,225 +1182,140 @@
             renderImagePreviews(); 
         }
         
-        function populateFormForEdit(productId) {
-            const products = getProducts();
-            const productToEdit = products.find(p => p.id === productId);
-            if (!productToEdit) {
-                resetProductForm(); 
-                return;
-            }
-
-            if (editingProductIdInput) editingProductIdInput.value = productToEdit.id;
-            if (document.getElementById('product-name')) document.getElementById('product-name').value = productToEdit.name;
-            if (document.getElementById('product-description')) document.getElementById('product-description').value = productToEdit.description;
-            if (document.getElementById('product-price')) document.getElementById('product-price').value = productToEdit.price;
-            if (document.getElementById('product-sku')) document.getElementById('product-sku').value = productToEdit.sku || '';
-            if (document.getElementById('product-stock')) document.getElementById('product-stock').value = productToEdit.stock;
-            if (document.getElementById('product-status')) document.getElementById('product-status').value = productToEdit.status;
-
-            if (productSizesInput && productToEdit.sizes && Array.isArray(productToEdit.sizes)) {
-                productSizesInput.value = productToEdit.sizes.join(', ');
-            } else if (productSizesInput) {
-                productSizesInput.value = '';
-            }
-            if (productToEdit.colors && Array.isArray(productToEdit.colors)) {
-                renderColorEntries(productToEdit.colors);
-            } else {
-                renderColorEntries([]); 
-            }
-            
-            // NEW: Populate country prices
-            if (productToEdit.countryPrices && Array.isArray(productToEdit.countryPrices)) {
-                renderCountryPriceEntries(productToEdit.countryPrices);
-            } else {
-                renderCountryPriceEntries([]);
-            }
-
-            currentProductImages = productToEdit.images ? [...productToEdit.images] : []; 
-            currentSizeGuideData = productToEdit.sizeGuideData || null;
-            updateSizeGuideStatus(); 
-            renderImagePreviews();
-
-            if (productFormTitle) productFormTitle.textContent = 'Edit Product Deployment';
-            if (productFormSubmitBtn) productFormSubmitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Confirm Update';
-            if (toggleAddProductFormButton) toggleAddProductFormButton.innerHTML = '<i class="fas fa-minus-circle mr-2"></i> Cancel Edit';
-            
-            if (addProductFormContainer) addProductFormContainer.classList.add('open');
-            window.scrollTo({ top: addProductFormContainer.offsetTop - 100 , behavior: 'smooth' }); 
-        }
-
-
-        function renderProductsTable() {
-             if (!productTableBody) return; 
-            const products = getProducts(); productTableBody.innerHTML = '';
-            if (products.length === 0) { if(noProductsMessage) noProductsMessage.classList.remove('hidden'); }
-            else {
-                if(noProductsMessage) noProductsMessage.classList.add('hidden');
-                products.forEach(product => {
-                    let primaryImageUrl = 'https://placehold.co/100x100/333/ccc?text=N/A';
-                    if (product.images && product.images.length > 0) {
-                        const primaryImg = product.images.find(img => img.isPrimary) || product.images[0];
-                        if (primaryImg && primaryImg.dataUrl) primaryImageUrl = primaryImg.dataUrl;
-                    }
-                    const row = productTableBody.insertRow();
-                    let productNameDisplay = product.name;
-                    row.innerHTML = `
-                        <td><img src="${primaryImageUrl}" alt="${product.name}" class="product-thumbnail-small"></td>
-                        <td>${productNameDisplay}</td>
-                        <td>${product.sku || 'N/A'}</td>
-                        <td>$${parseFloat(product.price).toFixed(2)}</td>
-                        <td>${product.stock}</td>
-                        <td><span class="status-badge ${product.status === 'Draft' ? 'status-badge-draft' : 'status-badge-active'}">${product.status}</span></td>
-                        <td class="space-x-1">
-                            <button class="btn btn-secondary btn-sm btn-edit-product" data-id="${product.id}"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-danger btn-sm btn-delete-product" data-id="${product.id}"><i class="fas fa-trash"></i></button>
-                        </td>
-                    `;
-                });
-            }
-            if(dashboardProductCountEl) dashboardProductCountEl.textContent = products.length;
-            
-            document.querySelectorAll('.btn-delete-product').forEach(button => { 
-                button.addEventListener('click', function() { 
-                        deleteProduct(this.getAttribute('data-id')); 
-                }); 
-            });
-
-            document.querySelectorAll('.btn-edit-product').forEach(button => {
-                button.addEventListener('click', function() {
-                    populateFormForEdit(this.getAttribute('data-id'));
-                });
-            });
-        }
-
-        function deleteProduct(productId) {
-            if (!confirm('Are you sure you want to delete this product? This will also remove its reviews.')) return;
-            
-            let products = getProducts();
-            products = products.filter(p => p.id !== productId);
-            saveProducts(products);
-
-            let allReviews = getReviews();
-            if (allReviews[productId]) {
-                delete allReviews[productId];
-                saveReviews(allReviews);
-            }
-            
-            renderProductsTable();
-            if(!document.getElementById('reviews-admin-section').classList.contains('hidden')) {
-                renderReviewsTable(); 
-            }
-            updateDashboardMetrics(); 
-        }
-
-        if (productForm) {
-             productForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                 if (currentProductImages.length === 0) { 
-                    alert("Please upload at least one product image."); 
-                    return; 
-                }
-                if (currentProductImages.length > 0 && !currentProductImages.some(img => img.isPrimary)) { 
-                    currentProductImages[0].isPrimary = true; 
-                }
-
-                const productName = document.getElementById('product-name').value;
-                const productPrice = document.getElementById('product-price').value;
-                const productStock = parseInt(document.getElementById('product-stock').value);
-
-                if (!productName || !productPrice || isNaN(productStock) || productStock < 0) { 
-                    alert("Please fill all required product fields with valid data: Name, Price, Stock.");
-                    return; 
-                }
-
-                const sizesString = productSizesInput ? productSizesInput.value : '';
-                const productSizesArray = sizesString.split(',').map(s => s.trim()).filter(s => s !== '');
-
-                const collectedColors = [];
-                const colorEntryRows = productColorsListEditor.querySelectorAll('.product-color-entry');
-                let colorsValid = true;
-                colorEntryRows.forEach(row => {
-                    const nameInput = row.querySelector('.product-color-name');
-                    const hexInput = row.querySelector('.product-color-hex');
-                    const name = nameInput ? nameInput.value.trim() : '';
-                    const hex = hexInput ? hexInput.value.trim().toUpperCase() : '';
-
-                    if (name && hex) {
-                        if (!/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex)) {
-                            alert(`Invalid hex code format for color "${name}": ${hex}. Please use #RRGGBB or #RGB.`);
-                            if(hexInput) hexInput.focus();
-                            colorsValid = false;
-                            return;
-                        }
-                        collectedColors.push({ name, hex });
-                    } else if (name || hex) { 
-                        alert('Both Color Name and Hex Code must be filled for each color entry, or leave both blank to ignore the row.');
-                        if (!name && nameInput) nameInput.focus();
-                        else if (!hex && hexInput) hexInput.focus();
-                        colorsValid = false;
-                        return;
-                    }
-                });
-
-                if (!colorsValid) return; 
-
-                // NEW: Collect country prices
-                const collectedCountryPrices = [];
-                const countryPriceRows = countryPricesList.querySelectorAll('.country-price-entry');
-                let countryPricesValid = true;
-                countryPriceRows.forEach(row => {
-                    const countrySelect = row.querySelector('.country-price-country');
-                    const priceInput = row.querySelector('.country-price-value');
-                    const country = countrySelect ? countrySelect.value : '';
-                    const price = priceInput ? priceInput.value : '';
-
-                    if (country && price) {
-                        collectedCountryPrices.push({ country, price });
-                    } else if (country || price) {
-                        alert('Both Country and Price must be filled for each country price entry.');
-                        countryPricesValid = false;
-                        return;
-                    }
-                });
-
-                if (!countryPricesValid) return;
-                                
-                const editingId = editingProductIdInput ? editingProductIdInput.value : '';
-                let products = getProducts();
-                
-                const productData = {
-                    name: productName,
-                    description: document.getElementById('product-description').value,
-                    price: productPrice, // This is now the default/base price
-                    countryPrices: collectedCountryPrices, // NEW: Add country prices
-                    sku: document.getElementById('product-sku').value,
-                    stock: productStock,
-                    status: document.getElementById('product-status').value,
-                    images: [...currentProductImages],
-                    sizes: productSizesArray, 
-                    colors: collectedColors, 
-                    sizeGuideData: currentSizeGuideData
-                };
-
-                if (editingId) { 
-                    const productIndex = products.findIndex(p => p.id === editingId);
-                    if (productIndex > -1) {
-                        products[productIndex] = { ...products[productIndex], ...productData };
-                    }
+        if (toggleAddProductFormButton && addProductFormContainer) {
+            toggleAddProductFormButton.addEventListener('click', () => {
+                const isOpen = addProductFormContainer.classList.contains('open');
+                if (isOpen) { 
+                    addProductFormContainer.classList.remove('open');
+                    resetProductForm(); 
                 } else { 
-                    const newProduct = { id: `TM-${Date.now()}`, ...productData };
-                    products.push(newProduct);
+                    resetProductForm(); 
+                    addProductFormContainer.classList.add('open');
+                    if (toggleAddProductFormButton) toggleAddProductFormButton.innerHTML = '<i class="fas fa-minus-circle mr-2"></i> Cancel Deployment';
                 }
-                
-                saveProducts(products); 
-                renderProductsTable(); 
-                updateDashboardMetrics(); 
-                resetProductForm(); 
-                if(addProductFormContainer) addProductFormContainer.classList.remove('open'); 
             });
         }
 
-        // START: Size Guide Editor Logic
+        if (cancelAddProductButton && addProductFormContainer) {
+            cancelAddProductButton.addEventListener('click', () => {
+                addProductFormContainer.classList.remove('open'); 
+                resetProductForm(); 
+            });
+        }
+        
+        function createColorEntryRow(color = { name: '', hex: '' }) {
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'flex items-center space-x-2 product-color-entry';
+
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'form-input product-color-name flex-grow';
+            nameInput.placeholder = 'Color Name (e.g., Midnight Black)';
+            nameInput.value = color.name;
+
+            const hexInput = document.createElement('input');
+            hexInput.type = 'text'; 
+            hexInput.className = 'form-input product-color-hex w-32';
+            hexInput.placeholder = '#RRGGBB';
+            hexInput.value = color.hex;
+            hexInput.pattern = '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$';
+
+            const colorPicker = document.createElement('input');
+            colorPicker.type = 'color';
+            colorPicker.className = 'product-color-picker w-8 h-8 p-0 border-none cursor-pointer';
+            colorPicker.value = color.hex || '#000000';
+            colorPicker.addEventListener('input', (e) => {
+                hexInput.value = e.target.value.toUpperCase();
+            });
+            hexInput.addEventListener('input', (e) => {
+                 if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(e.target.value)) {
+                    colorPicker.value = e.target.value;
+                 }
+            });
+
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.innerHTML = '<i class="fas fa-trash text-red-500"></i>';
+            removeBtn.className = 'btn-icon remove-color-entry-btn p-2';
+            removeBtn.title = 'Remove Color';
+            removeBtn.addEventListener('click', () => {
+                entryDiv.remove();
+            });
+
+            entryDiv.appendChild(nameInput);
+            entryDiv.appendChild(hexInput);
+            entryDiv.appendChild(colorPicker);
+            entryDiv.appendChild(removeBtn);
+            return entryDiv;
+        }
+
+        function renderColorEntries(colorsArray = []) {
+            if (!productColorsListEditor) return;
+            productColorsListEditor.innerHTML = ''; 
+            if (colorsArray && colorsArray.length > 0) {
+                colorsArray.forEach(color => {
+                    productColorsListEditor.appendChild(createColorEntryRow(color));
+                });
+            }
+        }
+
+        if (addProductColorBtn && productColorsListEditor) {
+            addProductColorBtn.addEventListener('click', () => {
+                productColorsListEditor.appendChild(createColorEntryRow());
+            });
+        }
+
+        function createCountryPriceRow(priceEntry = { country: '', price: '' }) {
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'flex items-center space-x-2 country-price-entry';
+
+            const countrySelect = document.createElement('select');
+            countrySelect.className = 'form-select country-price-country flex-grow';
+            countrySelect.innerHTML = '<option value="">Select Country</option>' + 
+                countryData.map(c => `<option value="${c.code}" ${priceEntry.country === c.code ? 'selected' : ''}>${c.name} (${c.code})</option>`).join('');
+
+            const priceInput = document.createElement('input');
+            priceInput.type = 'number';
+            priceInput.className = 'form-input country-price-value w-40';
+            priceInput.placeholder = 'Price';
+            priceInput.step = '0.01';
+            priceInput.min = '0';
+            priceInput.value = priceEntry.price;
+
+            const currencyLabel = document.createElement('span');
+            currencyLabel.className = 'text-sm text-[var(--admin-text-secondary)]';
+            currencyLabel.textContent = 'USD'; // Or dynamically change based on country
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.innerHTML = '<i class="fas fa-trash text-red-500"></i>';
+            removeBtn.className = 'btn-icon remove-country-price-btn p-2';
+            removeBtn.title = 'Remove Price';
+            removeBtn.addEventListener('click', () => entryDiv.remove());
+
+            entryDiv.appendChild(countrySelect);
+            entryDiv.appendChild(priceInput);
+            entryDiv.appendChild(currencyLabel);
+            entryDiv.appendChild(removeBtn);
+            return entryDiv;
+        }
+
+        function renderCountryPriceEntries(pricesArray = []) {
+            if (!countryPricesList) return;
+            countryPricesList.innerHTML = '';
+            if (pricesArray && pricesArray.length > 0) {
+                pricesArray.forEach(price => countryPricesList.appendChild(createCountryPriceRow(price)));
+            }
+        }
+
+        if (addCountryPriceBtn) {
+            addCountryPriceBtn.addEventListener('click', () => {
+                countryPricesList.appendChild(createCountryPriceRow());
+            });
+        }
+
+        // --- Size Guide Editor Logic (No changes needed here) ---
         const sizeGuideEditorOverlay = document.getElementById('size-guide-editor-modal-overlay');
         const openSizeGuideEditorBtn = document.getElementById('open-size-guide-editor');
         const closeSizeGuideEditorBtn = document.getElementById('size-guide-editor-close-btn');
@@ -1846,169 +1455,364 @@
                 }
             });
         }
-        // END: Size Guide Editor Logic
 
 
-        // Order Management
+        // --- Review Management ---
+        const reviewsTableBody = document.getElementById('reviews-table-body');
+        const noReviewsAdminMessage = document.getElementById('no-reviews-admin-message');
+        let reviewsCache = [];
+
+        function listenForReviews() {
+            onSnapshot(reviewsCollection, (snapshot) => {
+                reviewsCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderReviewsTable();
+                console.log("Reviews listener updated.", reviewsCache.length, "reviews loaded.");
+            }, (error) => {
+                console.error("Error listening for review changes: ", error);
+            });
+        }
+
+        function renderReviewsTable() {
+            if (!reviewsTableBody) return;
+            reviewsTableBody.innerHTML = '';
+            noReviewsAdminMessage.classList.toggle('hidden', reviewsCache.length > 0);
+
+            reviewsCache.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            reviewsCache.forEach(review => {
+                const row = reviewsTableBody.insertRow();
+                const ratingStars = '<span class="review-stars">' + '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating) + '</span>';
+
+                row.innerHTML = `
+                    <td>${review.name}</td>
+                    <td>${ratingStars}</td>
+                    <td class="text-sm max-w-xs truncate" title="${review.text}">${review.text}</td>
+                    <td>${review.productName}</td>
+                    <td>
+                        <label class="toggle-switch">
+                            <input type="checkbox" class="feature-review-toggle" data-review-id="${review.id}" ${review.isFeatured ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </td>
+                    <td>
+                        <button class="btn btn-danger btn-sm delete-review-btn" data-review-id="${review.id}"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+            });
+
+            document.querySelectorAll('.delete-review-btn').forEach(button => {
+                button.addEventListener('click', async function() {
+                    const reviewId = this.dataset.reviewId;
+                    if (confirm('Are you sure you want to delete this review?')) {
+                        try {
+                            await deleteDoc(doc(db, `artifacts/${appId}/public/data/reviews`, reviewId));
+                            showAdminAlert('Review deleted.', 'success');
+                        } catch (e) {
+                            showAdminAlert('Failed to delete review.');
+                            console.error(e);
+                        }
+                    }
+                });
+            });
+
+            document.querySelectorAll('.feature-review-toggle').forEach(toggle => {
+                toggle.addEventListener('change', async function() {
+                    const reviewId = this.dataset.reviewId;
+                    const isFeatured = this.checked;
+                    try {
+                        const reviewRef = doc(db, `artifacts/${appId}/public/data/reviews`, reviewId);
+                        await updateDoc(reviewRef, { isFeatured: isFeatured });
+                    } catch (e) {
+                        showAdminAlert('Failed to update review status.');
+                        console.error(e);
+                        this.checked = !isFeatured; // Revert on failure
+                    }
+                });
+            });
+        }
+
+        // --- Message Management ---
+        const messagesTableBody = document.getElementById('messages-table-body');
+        const noMessagesAdminMessage = document.getElementById('no-messages-admin-message');
+        let messagesCache = [];
+
+        function listenForMessages() {
+            onSnapshot(messagesCollection, (snapshot) => {
+                messagesCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderMessagesTable();
+            }, (error) => console.error("Error listening for messages: ", error));
+        }
+        
+        function renderMessagesTable() {
+            if (!messagesTableBody) return;
+            messagesTableBody.innerHTML = '';
+            noMessagesAdminMessage.classList.toggle('hidden', messagesCache.length > 0);
+
+            messagesCache.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            messagesCache.forEach(msg => {
+                const row = messagesTableBody.insertRow();
+                const timestamp = new Date(msg.timestamp).toLocaleString();
+                row.innerHTML = `
+                    <td class="text-sm">${timestamp}</td>
+                    <td><a href="mailto:${msg.email}" class="text-purple-400 hover:underline">${msg.email}</a></td>
+                    <td class="text-sm max-w-md whitespace-pre-wrap">${msg.message}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm delete-message-btn" data-message-id="${msg.id}"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+            });
+
+            document.querySelectorAll('.delete-message-btn').forEach(button => {
+                button.addEventListener('click', async function() {
+                    const messageId = this.dataset.messageId;
+                    if (confirm('Are you sure you want to delete this message?')) {
+                        try {
+                            await deleteDoc(doc(db, `artifacts/${appId}/public/data/contactMessages`, messageId));
+                            showAdminAlert('Message deleted.', 'success');
+                        } catch (e) {
+                            showAdminAlert('Failed to delete message.');
+                            console.error(e);
+                        }
+                    }
+                });
+            });
+        }
+
+        // --- Order Management ---
+        const orderTableBody = document.getElementById('order-table-body');
+        const noOrdersMsgEl = document.getElementById('no-orders-message');
+        const orderFilterButtonsContainer = document.getElementById('order-filter-buttons');
         const orderDetailModalOverlay = document.getElementById('order-detail-modal-overlay');
         const orderDetailModalCloseBtn = document.getElementById('order-detail-modal-close-btn');
-        const modalCustomerName = document.getElementById('modal-customer-name');
-        const modalCustomerEmail = document.getElementById('modal-customer-email');
-        const modalCustomerPhone = document.getElementById('modal-customer-phone');
-        const modalCustomerAddress = document.getElementById('modal-customer-address');
-        const modalOrderId = document.getElementById('modal-order-id');
-        const modalOrderDate = document.getElementById('modal-order-date');
-        const modalOrderTotal = document.getElementById('modal-order-total');
-        const modalOrderStatus = document.getElementById('modal-order-status');
-        const modalOrderItemsTableBody = document.getElementById('modal-order-items-table-body');
         const markOrderDoneBtn = document.getElementById('mark-order-done-btn');
+        let ordersCache = [];
         let currentViewingOrderId = null;
         let currentOrderFilter = 'All';
 
-        function getOrders() {
-            try { return JSON.parse(localStorage.getItem('triumindOrders')) || []; } 
-            catch (e) { console.error("Error parsing orders:", e); return []; }
+        function listenForOrders() {
+            onSnapshot(ordersCollection, (snapshot) => {
+                ordersCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderOrdersTable(currentOrderFilter);
+                updateDashboardMetrics();
+            }, (error) => console.error("Error listening for orders: ", error));
         }
-        function saveOrders(orders) {
-            try { localStorage.setItem('triumindOrders', JSON.stringify(orders)); } 
-            catch (e) { console.error("Error saving orders:", e); }
+
+        function renderOrdersTable(filterStatus = 'All') {
+            if (!orderTableBody || !noOrdersMsgEl) return;
+            orderTableBody.innerHTML = ''; 
+            currentOrderFilter = filterStatus; 
+            let filteredOrders = (filterStatus !== 'All') ? ordersCache.filter(order => order.status === filterStatus) : ordersCache;
+            document.querySelectorAll('#order-filter-buttons .btn-filter').forEach(b => b.classList.toggle('active', b.dataset.status === filterStatus));
+            
+            noOrdersMsgEl.textContent = `No orders found with status: ${filterStatus}.`;
+            noOrdersMsgEl.classList.toggle('hidden', filteredOrders.length > 0);
+
+            filteredOrders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            filteredOrders.forEach(order => {
+                const row = orderTableBody.insertRow();
+                row.innerHTML = `
+                    <td>${order.id}</td> <td>${order.customerName || 'N/A'}</td>
+                    <td>${new Date(order.timestamp).toLocaleString()}</td> <td>$${parseFloat(order.totalAmount || 0).toFixed(2)}</td>
+                    <td><span class="status-badge ${getStatusBadgeClass(order.status)}">${order.status}</span></td>
+                    <td class="space-x-1">
+                        <button class="btn btn-secondary btn-sm btn-view-order" data-order-id="${order.id}" title="View Details"><i class="fas fa-eye"></i></button>
+                    </td>
+                `;
+            });
+            document.querySelectorAll('.btn-view-order').forEach(b => b.addEventListener('click', function() { displayOrderDetailModal(this.dataset.orderId); }));
         }
-        function getStatusBadgeClass(status) {
-            if (!status) return '';
-            switch (status.toLowerCase()) {
-                case 'processing': return 'status-badge-processing';
-                case 'completed': return 'status-badge-completed';
-                case 'shipped': return 'status-badge-shipped';
-                case 'cancelled': return 'status-badge-cancelled';
-                case 'refunded': return 'status-badge-refunded';
-                default: return '';
-            }
-        }
+
         function displayOrderDetailModal(orderId) {
-            const order = getOrders().find(o => o.id === orderId);
+            const order = ordersCache.find(o => o.id === orderId);
             currentViewingOrderId = null; 
             if (!order) return;
             currentViewingOrderId = orderId; 
-            if (modalCustomerName) modalCustomerName.textContent = order.customerName || 'N/A';
-            if (modalCustomerEmail) modalCustomerEmail.textContent = order.customerEmail || 'N/A';
-            if (modalCustomerPhone) modalCustomerPhone.textContent = order.customerPhone || 'N/A';
-            if (modalCustomerAddress) modalCustomerAddress.textContent = order.customerAddress || 'N/A';
-            if (modalOrderId) modalOrderId.textContent = order.id;
-            if (modalOrderDate) modalOrderDate.textContent = new Date(order.timestamp).toLocaleString();
-            if (modalOrderTotal) modalOrderTotal.textContent = `$${parseFloat(order.totalAmount || 0).toFixed(2)}`;
-            if (modalOrderStatus) {
-                 modalOrderStatus.textContent = order.status;
-                 modalOrderStatus.className = `status-badge ${getStatusBadgeClass(order.status)}`;
-            }
-            if (modalOrderItemsTableBody) {
-                modalOrderItemsTableBody.innerHTML = ''; 
-                if (order.items && Array.isArray(order.items)) {
-                    order.items.forEach(item => {
-                        const row = modalOrderItemsTableBody.insertRow();
-                        let optionsText = (item.selectedSize ? `Size: ${item.selectedSize}<br>` : '') + (item.selectedColor ? `Color: ${item.selectedColor}` : '');
-                        row.innerHTML = `
-                            <td><img src="${item.image || 'https://placehold.co/40x40/333/ccc?text=N/A'}" alt="${item.name}" style="width:40px; height:auto; border-radius:3px;"></td>
-                            <td>${item.name}</td> <td>${optionsText || 'N/A'}</td> <td>${item.quantity}</td>
-                            <td>$${parseFloat(item.price).toFixed(2)}</td> <td>$${(parseFloat(item.price) * item.quantity).toFixed(2)}</td>
-                        `;
-                    });
-                }
-            }
-            if (markOrderDoneBtn) {
-                markOrderDoneBtn.classList.toggle('hidden', !(order.status && order.status.toLowerCase() === 'processing'));
-            }
-            if (orderDetailModalOverlay) orderDetailModalOverlay.classList.add('open');
-        }
-        if (orderDetailModalCloseBtn && orderDetailModalOverlay) {
-            orderDetailModalCloseBtn.addEventListener('click', () => { orderDetailModalOverlay.classList.remove('open'); currentViewingOrderId = null; });
-            orderDetailModalOverlay.addEventListener('click', (event) => { 
-                if (event.target === orderDetailModalOverlay) { orderDetailModalOverlay.classList.remove('open'); currentViewingOrderId = null; }
-            });
-        }
-        if (markOrderDoneBtn) {
-            markOrderDoneBtn.addEventListener('click', () => {
-                if (!currentViewingOrderId) return;
-                let orders = getOrders();
-                const orderIndex = orders.findIndex(o => o.id === currentViewingOrderId);
-                if (orderIndex > -1) {
-                    orders[orderIndex].status = "Completed";
-                    saveOrders(orders);
-                    if (modalOrderStatus) {
-                        modalOrderStatus.textContent = "Completed";
-                        modalOrderStatus.className = `status-badge ${getStatusBadgeClass("Completed")}`;
-                    }
-                    markOrderDoneBtn.classList.add('hidden'); 
-                    renderOrdersTable(currentOrderFilter); 
-                    updateDashboardMetrics(); 
-                }
-            });
-        }
-        function renderOrdersTable(filterStatus = 'All') {
-            const orderTableBody = document.getElementById('order-table-body');
-            const noOrdersMsgEl = document.getElementById('no-orders-message');
-            if (!orderTableBody || !noOrdersMsgEl) return;
-            let orders = getOrders();
-            orderTableBody.innerHTML = ''; 
-            currentOrderFilter = filterStatus; 
-            let filteredOrders = (filterStatus !== 'All') ? orders.filter(order => order.status === filterStatus) : orders;
-            document.querySelectorAll('#order-filter-buttons .btn-filter').forEach(b => b.classList.toggle('active', b.dataset.status === filterStatus));
-            if (filteredOrders.length === 0) {
-                noOrdersMsgEl.textContent = `No orders found with status: ${filterStatus}.`;
-                noOrdersMsgEl.classList.remove('hidden');
-            } else {
-                noOrdersMsgEl.classList.add('hidden');
-                filteredOrders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                filteredOrders.forEach(order => {
-                    const row = orderTableBody.insertRow();
+
+            document.getElementById('modal-customer-name').textContent = order.customerName || 'N/A';
+            document.getElementById('modal-customer-email').textContent = order.customerEmail || 'N/A';
+            document.getElementById('modal-customer-phone').textContent = order.customerPhone || 'N/A';
+            document.getElementById('modal-customer-address').textContent = order.customerAddress || 'N/A';
+            document.getElementById('modal-order-id').textContent = order.id;
+            document.getElementById('modal-order-date').textContent = new Date(order.timestamp).toLocaleString();
+            document.getElementById('modal-order-total').textContent = `$${parseFloat(order.totalAmount || 0).toFixed(2)}`;
+            const modalOrderStatus = document.getElementById('modal-order-status');
+            modalOrderStatus.textContent = order.status;
+            modalOrderStatus.className = `status-badge ${getStatusBadgeClass(order.status)}`;
+            
+            const modalOrderItemsTableBody = document.getElementById('modal-order-items-table-body');
+            modalOrderItemsTableBody.innerHTML = ''; 
+            if (order.items && Array.isArray(order.items)) {
+                order.items.forEach(item => {
+                    const row = modalOrderItemsTableBody.insertRow();
+                    let optionsText = (item.selectedSize ? `Size: ${item.selectedSize}<br>` : '') + (item.selectedColor ? `Color: ${item.selectedColor}` : '');
                     row.innerHTML = `
-                        <td>${order.id}</td> <td>${order.customerName || 'N/A'}</td>
-                        <td>${new Date(order.timestamp).toLocaleString()}</td> <td>$${parseFloat(order.totalAmount || 0).toFixed(2)}</td>
-                        <td><span class="status-badge ${getStatusBadgeClass(order.status)}">${order.status}</span></td>
-                        <td class="space-x-1">
-                            <button class="btn btn-secondary btn-sm btn-view-order" data-order-id="${order.id}" title="View Details"><i class="fas fa-eye"></i></button>
-                            <button class="btn btn-secondary btn-sm btn-print-shipping" data-order-id="${order.id}" title="Print Shipping Info"><i class="fas fa-print"></i></button>
-                        </td>
+                        <td><img src="${item.image || 'https://placehold.co/40x40/333/ccc?text=N/A'}" alt="${item.name}" style="width:40px; height:auto; border-radius:3px;"></td>
+                        <td>${item.name}</td> <td>${optionsText || 'N/A'}</td> <td>${item.quantity}</td>
+                        <td>$${parseFloat(item.price).toFixed(2)}</td> <td>$${(parseFloat(item.price) * item.quantity).toFixed(2)}</td>
                     `;
                 });
-                document.querySelectorAll('.btn-view-order').forEach(b => b.addEventListener('click', function() { displayOrderDetailModal(this.dataset.orderId); }));
-                document.querySelectorAll('.btn-print-shipping').forEach(b => b.addEventListener('click', function() { printShippingInfo(this.dataset.orderId); }));
             }
+            
+            markOrderDoneBtn.classList.toggle('hidden', !(order.status && order.status.toLowerCase() === 'processing'));
+            orderDetailModalOverlay.classList.add('open');
         }
-        const orderFilterButtonsContainer = document.getElementById('order-filter-buttons');
+
         if (orderFilterButtonsContainer) {
             orderFilterButtonsContainer.addEventListener('click', function(event) {
                 if (event.target.matches('.btn-filter')) renderOrdersTable(event.target.dataset.status);
             });
         }
+        if (orderDetailModalCloseBtn) orderDetailModalCloseBtn.addEventListener('click', () => { orderDetailModalOverlay.classList.remove('open'); });
+        if (markOrderDoneBtn) {
+            markOrderDoneBtn.addEventListener('click', async () => {
+                if (!currentViewingOrderId) return;
+                try {
+                    const orderRef = doc(db, `artifacts/${appId}/public/data/orders`, currentViewingOrderId);
+                    await updateDoc(orderRef, { status: "Completed" });
+                    showAdminAlert("Order status updated to 'Completed'.", 'success');
+                    orderDetailModalOverlay.classList.remove('open');
+                } catch (e) {
+                    showAdminAlert("Failed to update order status.");
+                    console.error(e);
+                }
+            });
+        }
+        
+        // --- Newsletter Management ---
+        const newsletterEmailsList = document.getElementById('newsletter-emails-list');
+        const noNewsletterEmails = document.getElementById('no-newsletter-emails');
+        let newsletterCache = [];
 
-        // Newsletter Emails
-        function loadNewsletterEmails() {
-            const emailsListEl = document.getElementById('newsletter-emails-list');
-            const noEmailsMessageEl = document.getElementById('no-newsletter-emails');
-            if (!emailsListEl || !noEmailsMessageEl) return;
-            emailsListEl.innerHTML = ''; 
-            let newsletterSignups = [];
-            try { newsletterSignups = JSON.parse(localStorage.getItem('triumindNewsletterSignups')) || []; } 
-            catch (e) { console.error("Error parsing newsletter signups:", e); }
-            noEmailsMessageEl.classList.toggle('hidden', newsletterSignups.length > 0);
-            emailsListEl.classList.toggle('hidden', newsletterSignups.length === 0);
-            newsletterSignups.forEach(email => {
+        function listenForNewsletter() {
+            onSnapshot(newsletterCollection, (snapshot) => {
+                newsletterCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderNewsletterList();
+                updateDashboardMetrics();
+            }, (error) => console.error("Error listening for newsletter signups: ", error));
+        }
+
+        function renderNewsletterList() {
+            if (!newsletterEmailsList) return;
+            newsletterEmailsList.innerHTML = '';
+            noNewsletterEmails.classList.toggle('hidden', newsletterCache.length > 0);
+            newsletterCache.forEach(signup => {
                 const listItem = document.createElement('li');
-                listItem.textContent = email;
-                emailsListEl.appendChild(listItem);
+                listItem.textContent = signup.email;
+                newsletterEmailsList.appendChild(listItem);
             });
         }
 
-        // Stories Management
+        // --- All Settings Management (Drops, Sections, Site) ---
+        let settingsCache = {};
+
+        function listenForSettings() {
+            const settingsIds = ['countdown', 'stories', 'sectionVisibility', 'featuredProducts', 'siteInfo'];
+            settingsIds.forEach(id => {
+                onSnapshot(settingsDoc(id), (doc) => {
+                    settingsCache[id] = doc.exists() ? doc.data() : {};
+                    console.log(`Settings listener for '${id}' updated.`);
+                    // Depending on which setting changed, update the relevant part of the UI
+                    if (id === 'countdown') loadCurrentCountdownSettings();
+                    if (id === 'stories') initializeStorySlots();
+                    if (id === 'sectionVisibility') loadSectionVisibilitySettings();
+                    if (id === 'featuredProducts') populateProductSelectors();
+                    if (id === 'siteInfo') loadSiteInfoSettings();
+                }, (error) => console.error(`Error listening for setting '${id}':`, error));
+            });
+        }
+
+        // Drop & Countdown
+        const adminDropForm = document.getElementById('adminDropForm');
+        const adminCurrentCountdownDisplay = document.getElementById('current-countdown-display');
+        const stopCountdownBtn = document.getElementById('stop-countdown-btn');
+
+        function loadCurrentCountdownSettings() {
+            const savedSettings = settingsCache.countdown || {};
+            const alsoFeatureCheckbox = document.getElementById('also-feature-in-gear');
+
+            if (savedSettings.target && adminCurrentCountdownDisplay) {
+                const savedDate = new Date(parseInt(savedSettings.target));
+                if (!isNaN(savedDate.getTime()) && savedDate.getTime() > Date.now()) { 
+                    const mode = (savedSettings.mode || 'section').replace(/^\w/, c => c.toUpperCase());
+                    adminCurrentCountdownDisplay.textContent = `T-Minus: ${savedDate.toLocaleString()} (Mode: ${mode})`;
+                    const modeRadio = adminDropForm.querySelector(`input[name="countdownMode"][value="${savedSettings.mode || 'section'}"]`);
+                    if (modeRadio) modeRadio.checked = true;
+                    if (alsoFeatureCheckbox) {
+                        alsoFeatureCheckbox.checked = savedSettings.alsoFeatureInGear === true;
+                    }
+                } else {
+                     adminCurrentCountdownDisplay.textContent = "T-Minus: Not Set or Expired";
+                }
+            } else {
+                 adminCurrentCountdownDisplay.textContent = "T-Minus: Not Set";
+                 if (alsoFeatureCheckbox) alsoFeatureCheckbox.checked = false;
+            }
+        }
+
+        if (adminDropForm) {
+            adminDropForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const adminDropDateInput = document.getElementById('drop-date');
+                const adminDropTimeInput = document.getElementById('drop-time');
+                const alsoFeatureCheckbox = document.getElementById('also-feature-in-gear');
+                const selectedProductIdsForActivation = Array.from(document.querySelectorAll('#drop-activation-products-checkbox-container input:checked')).map(cb => cb.value);
+
+                if (!adminDropDateInput.value || !adminDropTimeInput.value || selectedProductIdsForActivation.length === 0) {
+                    showAdminAlert('Please set a valid future date/time and select at least one product.');
+                    return;
+                }
+                
+                const targetDateTime = new Date(`${adminDropDateInput.value}T${adminDropTimeInput.value}:00Z`);
+                if (isNaN(targetDateTime.getTime()) || targetDateTime.getTime() <= Date.now()) {
+                    showAdminAlert('Please select a date and time in the future.');
+                    return;
+                }
+
+                const selectedMode = adminDropForm.querySelector('input[name="countdownMode"]:checked').value;
+                const newCountdownSettings = {
+                    target: targetDateTime.getTime().toString(),
+                    mode: selectedMode,
+                    productIdsForActivation: selectedProductIdsForActivation,
+                    alsoFeatureInGear: alsoFeatureCheckbox.checked 
+                };
+
+                try {
+                    await setDoc(settingsDoc('countdown'), newCountdownSettings);
+                    showAdminAlert('Countdown synchronized!', 'success');
+                } catch (error) {
+                    showAdminAlert('Failed to save countdown settings.');
+                    console.error(error);
+                }
+            });
+        }
+        
+        if (stopCountdownBtn) {
+            stopCountdownBtn.addEventListener('click', async () => {
+                if (confirm('Are you sure you want to stop the current countdown?')) {
+                    try {
+                        await setDoc(settingsDoc('countdown'), { target: null }); // or deleteDoc
+                        showAdminAlert('Countdown stopped.', 'success');
+                    } catch (error) {
+                        showAdminAlert('Failed to stop countdown.');
+                        console.error(error);
+                    }
+                }
+            });
+        }
+        
+        // Stories
         const storySlotsContainer = document.getElementById('story-slots-container');
-        const NUM_STORY_SLOTS = 4; 
-        let currentStoryImages = []; 
+        const saveStoriesButton = document.getElementById('save-stories-changes');
+        const NUM_STORY_SLOTS = 4;
+        
         function initializeStorySlots() {
             if (!storySlotsContainer) return;
             storySlotsContainer.innerHTML = ''; 
-            currentStoryImages = getStoredStories(); 
+            const storiesData = settingsCache.stories?.slots || Array(NUM_STORY_SLOTS).fill({ imageDataUrl: null, message: '' });
+            
             for (let i = 0; i < NUM_STORY_SLOTS; i++) {
-                const storyData = currentStoryImages[i] || { imageDataUrl: null, message: '' }; 
+                const storyData = storiesData[i] || { imageDataUrl: null, message: '' }; 
                 const slotDiv = document.createElement('div');
                 slotDiv.className = 'story-slot flex flex-col items-center';
                 slotDiv.innerHTML = `
@@ -2018,123 +1822,173 @@
                     </div>
                     <label for="story-message-${i}" class="form-label text-left w-full mt-2">Story Message</label>
                     <textarea id="story-message-${i}" class="form-textarea story-message-input mb-3" rows="3" placeholder="e.g., Badr was the first to join...">${storyData.message || ''}</textarea>
-                    <input type="file" class="story-image-input" accept="image/*" data-story-index="${i}">
+                    <input type="file" class="story-image-input hidden" accept="image/*" data-story-index="${i}">
                     <button type="button" class="btn btn-secondary btn-sm mb-2 w-full upload-story-btn">Upload Image</button>
                     <button type="button" class="btn btn-danger btn-sm w-full remove-story-btn" data-story-index="${i}">Remove Image</button>
                 `;
-                const previewImg = slotDiv.querySelector('.story-image-preview');
-                slotDiv.querySelector('.story-image-input').addEventListener('change', (event) => handleStoryImageUpload(event, i, previewImg));
                 slotDiv.querySelector('.upload-story-btn').onclick = () => slotDiv.querySelector('.story-image-input').click();
-                slotDiv.querySelector('.remove-story-btn').onclick = () => removeStoryImage(i, previewImg);
+                slotDiv.querySelector('.story-image-input').addEventListener('change', (event) => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => { 
+                            slotDiv.querySelector('.story-image-preview').src = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+                slotDiv.querySelector('.remove-story-btn').onclick = () => {
+                    slotDiv.querySelector('.story-image-preview').src = 'https://placehold.co/400x500/1a1a1a/cccccc?text=No+Image';
+                };
                 storySlotsContainer.appendChild(slotDiv);
             }
         }
-        function getStoredStories() {
-            try {
-                const stories = JSON.parse(localStorage.getItem('triumindStories'));
-                if (Array.isArray(stories) && stories.length > 0) {
-                     return stories.map(story => ({
-                        imageDataUrl: story ? story.imageDataUrl : null,
-                        message: story ? story.message || '' : ''
-                    })).slice(0, NUM_STORY_SLOTS);
-                }
-            } catch (e) { console.error("Error parsing stories:", e); }
-            return Array(NUM_STORY_SLOTS).fill(null).map(() => ({ imageDataUrl: null, message: '' }));
-        }
 
-        function saveStoriesToLocalStorage() {
-            try { localStorage.setItem('triumindStories', JSON.stringify(currentStoryImages)); } 
-            catch (e) { console.error("Error saving stories:", e); }
-        }
-
-        function handleStoryImageUpload(event, index, previewImgElement) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => { 
-                    previewImgElement.src = e.target.result; 
-                    if (!currentStoryImages[index]) {
-                         currentStoryImages[index] = { imageDataUrl: null, message: '' };
-                    }
-                    currentStoryImages[index].imageDataUrl = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-        function removeStoryImage(index, previewImgElement) {
-            previewImgElement.src = 'https://placehold.co/400x500/1a1a1a/cccccc?text=No+Image';
-            if (currentStoryImages[index]) {
-                currentStoryImages[index].imageDataUrl = null;
-            }
-        }
-
-        const saveStoriesButton = document.getElementById('save-stories-changes');
         if (saveStoriesButton) {
-            saveStoriesButton.addEventListener('click', () => {
-                const messageInputs = storySlotsContainer.querySelectorAll('.story-message-input');
-                messageInputs.forEach((textarea, index) => {
-                    if (currentStoryImages[index]) {
-                        currentStoryImages[index].message = textarea.value.trim();
-                    } else if (textarea.value.trim() !== '') {
-                        currentStoryImages[index] = { imageDataUrl: null, message: textarea.value.trim() };
-                    }
+            saveStoriesButton.addEventListener('click', async () => {
+                const slots = storySlotsContainer.querySelectorAll('.story-slot');
+                const storiesToSave = Array.from(slots).map(slot => {
+                    const imgSrc = slot.querySelector('.story-image-preview').src;
+                    return {
+                        imageDataUrl: imgSrc.startsWith('https://placehold.co') ? null : imgSrc,
+                        message: slot.querySelector('.story-message-input').value.trim()
+                    };
                 });
+                try {
+                    await setDoc(settingsDoc('stories'), { slots: storiesToSave });
+                    showAdminAlert('Story changes saved!', 'success');
+                } catch (e) {
+                    showAdminAlert('Failed to save stories.');
+                    console.error(e);
+                }
+            });
+        }
+        
+        // Section Customization (Visibility & Featured)
+        const saveCustomizationSettingsButton = document.getElementById('save-customization-settings');
 
-                saveStoriesToLocalStorage();
-
-                const existingMsg = saveStoriesButton.parentElement.querySelector('.save-feedback');
-                if (existingMsg) existingMsg.remove();
-                
-                const successMsg = document.createElement('p');
-                successMsg.textContent = 'Story changes saved successfully!';
-                successMsg.className = 'text-green-400 text-sm mt-4 save-feedback';
-                saveStoriesButton.parentNode.insertBefore(successMsg, saveStoriesButton.nextSibling);
-                setTimeout(() => successMsg.remove(), 3000);
+        function loadSectionVisibilitySettings() {
+            const settings = settingsCache.sectionVisibility || {};
+            document.querySelectorAll('#section-visibility-form input[type="checkbox"]').forEach(toggle => {
+                toggle.checked = settings[toggle.name] !== undefined ? settings[toggle.name] : true;
             });
         }
 
-        // Dashboard Metrics
+        function populateProductSelectors() {
+            const activeProducts = productsCache.filter(p => p.status === 'Active');
+            const draftProducts = productsCache.filter(p => p.status === 'Draft');
+            const featuredSettings = settingsCache.featuredProducts || {};
+            const gearIds = featuredSettings.gearSectionProductIds || [];
+            const dropIds = featuredSettings.dropSectionProductIds || [];
+            const countdownSettings = settingsCache.countdown || {};
+            const countdownProductIds = countdownSettings.productIdsForActivation || [];
+
+            // Populate Featured Gear & Drop sections
+            const gearContainer = document.getElementById('featured-gear-checkbox-container');
+            const dropContainer = document.getElementById('featured-drop-checkbox-container');
+            [gearContainer, dropContainer].forEach(container => {
+                if (!container) return;
+                container.innerHTML = '';
+                if (activeProducts.length === 0) {
+                    container.innerHTML = '<p class="text-[var(--admin-text-secondary)] text-sm p-2">No active products available.</p>';
+                } else {
+                    const selectedIds = container === gearContainer ? gearIds : dropIds;
+                    activeProducts.forEach(p => container.innerHTML += createCheckboxHTML(`featured-${container.id}-${p.id}`, p.id, p.name, selectedIds.includes(p.id)));
+                }
+            });
+
+            // Populate Countdown Activation section
+            const countdownContainer = document.getElementById('drop-activation-products-checkbox-container');
+            if (countdownContainer) {
+                countdownContainer.innerHTML = '';
+                if (draftProducts.length === 0) {
+                    countdownContainer.innerHTML = '<p class="text-[var(--admin-text-secondary)] text-sm p-2">No DRAFT products available.</p>';
+                } else {
+                    draftProducts.forEach(p => countdownContainer.innerHTML += createCheckboxHTML(`drop-product-${p.id}`, p.id, `${p.name} (Draft)`, countdownProductIds.includes(p.id)));
+                }
+            }
+        }
+
+        function createCheckboxHTML(id, value, text, isChecked) {
+            return `<label for="${id}" class="form-checkbox-label"><input type="checkbox" id="${id}" value="${value}" class="form-checkbox-input" ${isChecked ? 'checked' : ''}><span>${text}</span></label>`;
+        }
+
+        if (saveCustomizationSettingsButton) {
+            saveCustomizationSettingsButton.addEventListener('click', async () => {
+                // Visibility
+                const visibilitySettings = {};
+                document.querySelectorAll('#section-visibility-form input[type="checkbox"]').forEach(toggle => {
+                    visibilitySettings[toggle.name] = toggle.checked;
+                });
+
+                // Featured Products
+                const selectedGearProductIds = Array.from(document.querySelectorAll('#featured-gear-checkbox-container input:checked')).map(cb => cb.value);
+                if (selectedGearProductIds.length > 3) {
+                    showAdminAlert('Max 3 products allowed for Main Gear Section.');
+                    return;
+                }
+                const featuredProductsSettings = {
+                    gearSectionProductIds: selectedGearProductIds,
+                    dropSectionProductIds: Array.from(document.querySelectorAll('#featured-drop-checkbox-container input:checked')).map(cb => cb.value)
+                };
+
+                try {
+                    const batch = writeBatch(db);
+                    batch.set(settingsDoc('sectionVisibility'), visibilitySettings);
+                    batch.set(settingsDoc('featuredProducts'), featuredProductsSettings);
+                    await batch.commit();
+                    showAdminAlert('Customization settings saved!', 'success');
+                } catch (e) {
+                    showAdminAlert('Failed to save customization settings.');
+                    console.error(e);
+                }
+            });
+        }
+
+        // Site Info Settings
+        const siteSettingsForm = document.getElementById('site-settings-form');
+        function loadSiteInfoSettings() {
+            const settings = settingsCache.siteInfo || {};
+            if (document.getElementById('site-name')) document.getElementById('site-name').value = settings.name || 'Triumind Collective OS';
+            if (document.getElementById('contact-email')) document.getElementById('contact-email').value = settings.email || 'operator@triumind.co';
+        }
+
+        if (siteSettingsForm) {
+            siteSettingsForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const settings = {
+                    name: document.getElementById('site-name').value,
+                    email: document.getElementById('contact-email').value
+                };
+                try {
+                    await setDoc(settingsDoc('siteInfo'), settings);
+                    showAdminAlert('Site info updated!', 'success');
+                } catch (error) {
+                    showAdminAlert('Failed to update site info.');
+                    console.error(error);
+                }
+            });
+        }
+        
+        // --- Dashboard Metrics ---
         function updateDashboardMetrics() {
-            const orders = getOrders(); const products = getProducts(); 
             const totalRevenueEl = document.getElementById('dashboard-total-revenue');
             const activeOrdersEl = document.getElementById('dashboard-active-orders');
-            const productCountEl = document.getElementById('dashboard-product-count'); 
-            let totalRevenue = 0; let activeOrderCount = 0;
-            orders.forEach(order => {
+            const productCountEl = document.getElementById('dashboard-product-count');
+            const newsletterCountEl = document.getElementById('dashboard-newsletter-count');
+
+            let totalRevenue = 0;
+            let activeOrderCount = 0;
+            ordersCache.forEach(order => {
                 if (order.status === 'Completed' || order.status === 'Shipped') totalRevenue += parseFloat(order.totalAmount || 0);
                 if (order.status === 'Processing' || order.status === 'Shipped') activeOrderCount++;
             });
+            
             if (totalRevenueEl) totalRevenueEl.textContent = `$${totalRevenue.toFixed(2)}`;
             if (activeOrdersEl) activeOrdersEl.textContent = activeOrderCount;
-            if (productCountEl) productCountEl.textContent = products.length; 
+            if (productCountEl) productCountEl.textContent = productsCache.length;
+            if (newsletterCountEl) newsletterCountEl.textContent = newsletterCache.length;
         }
-        
-        // Initial Load
-        document.addEventListener('DOMContentLoaded', () => {
-            const initialAdminActiveLinkFromLoad = document.querySelector('.sidebar .nav-link.active');
-            if (initialAdminActiveLinkFromLoad && initialAdminActiveLinkFromLoad.getAttribute('data-target')) {
-                 showAdminSection(initialAdminActiveLinkFromLoad.getAttribute('data-target'));
-            } else if (adminNavLinks.length > 0 && adminNavLinks[0].getAttribute('data-target')) {
-                adminNavLinks[0].classList.add('active'); 
-                showAdminSection(adminNavLinks[0].getAttribute('data-target'));
-            }
-            renderProductsTable(); 
-            renderOrdersTable(); 
-            updateDashboardMetrics(); 
-            
-            window.addEventListener('storage', (event) => {
-                if (event.key === 'triumindProductReviews') {
-                    if(!document.getElementById('reviews-admin-section').classList.contains('hidden')) {
-                        renderReviewsTable();
-                    }
-                }
-                if (event.key === 'triumindContactMessages') {
-                     if(!document.getElementById('messages-admin-section').classList.contains('hidden')) {
-                        renderMessagesTable();
-                    }
-                }
-            });
-        });
 
     </script>
 </body>
