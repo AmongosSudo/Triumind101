@@ -464,7 +464,63 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        // --- Firebase SDK Imports ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, query, where, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Initialization ---
+        let db, auth, app;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'triumind-dev';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+
+            apiKey: "AIzaSyBuFYZ_-8fL3jKOYUSWspd7aeTFq-QoF6E",
+
+            authDomain: "triumind-store1.firebaseapp.com",
+
+            projectId: "triumind-store1",
+
+            storageBucket: "triumind-store1.firebasestorage.app",
+
+            messagingSenderId: "945278061272",
+
+            appId: "1:945278061272:web:c515b911cd680f4b56e5ad"
+
+        };
+        
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (e) {
+            console.error("Error initializing Firebase:", e);
+        }
+
+        onAuthStateChanged(auth, user => {
+            if (!user) {
+                signIn();
+            }
+        });
+
+        async function signIn() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication failed:", error);
+            }
+        }
+        
+        // --- Firestore Collection References ---
+        const productsCollection = collection(db, `artifacts/${appId}/public/data/products`);
+        const reviewsCollection = collection(db, `artifacts/${appId}/public/data/reviews`);
+        const ordersCollection = collection(db, `artifacts/${appId}/public/data/orders`);
+        const newsletterCollection = collection(db, `artifacts/${appId}/public/data/newsletterSignups`);
+
         // --- Global Element References ---
         const customCursorEl = document.getElementById('custom-cursor');
         const modalOverlay = document.getElementById('modal-overlay');
@@ -490,7 +546,6 @@
         const productPriceEl = document.getElementById('product-price');
         const productDescriptionEl = document.getElementById('product-description');
         const addToCartBtn = document.getElementById('add-to-cart-btn');
-
         const productSizesSectionEl = document.getElementById('product-sizes-section');
         const productSizesListEl = document.getElementById('product-sizes-list');
         const productColorsSectionEl = document.getElementById('product-colors-section');
@@ -513,10 +568,7 @@
 
         // --- Localization ---
         let visitorInfo = {
-            countryCode: 'US',
-            currencyCode: 'USD',
-            currencySymbol: '$',
-            exchangeRate: 1
+            countryCode: 'US', currencyCode: 'USD', currencySymbol: '$', exchangeRate: 1
         };
 
         async function fetchVisitorInfo() {
@@ -524,31 +576,17 @@
                 const geoResponse = await fetch('https://ipapi.co/json/');
                 if (!geoResponse.ok) throw new Error('Geo-IP API request failed');
                 const geoData = await geoResponse.json();
-                
                 const countryCode = geoData.country_code;
                 const currencyCode = geoData.currency;
-                
-                if (!countryCode || !currencyCode) throw new Error('Locale data not found in Geo-IP response');
-
+                if (!countryCode || !currencyCode) throw new Error('Locale data not found');
                 const ratesResponse = await fetch('https://open.er-api.com/v6/latest/USD');
                 if (!ratesResponse.ok) throw new Error('Exchange rate API request failed');
                 const ratesData = await ratesResponse.json();
-
                 const exchangeRate = ratesData.rates[currencyCode];
                 if (!exchangeRate) throw new Error(`Exchange rate not found for ${currencyCode}`);
-                
                 const currencySymbols = { USD: '$', EUR: '€', GBP: '£', JPY: '¥', AED: 'د.إ' };
                 const currencySymbol = currencySymbols[currencyCode] || currencyCode;
-
-                console.log(`Visitor from ${geoData.country_name}. Country: ${countryCode}, Currency: ${currencyCode}, Rate: ${exchangeRate}`);
-
-                return {
-                    countryCode: countryCode,
-                    currencyCode: currencyCode,
-                    currencySymbol: currencySymbol,
-                    exchangeRate: exchangeRate
-                };
-
+                return { countryCode, currencyCode, currencySymbol, exchangeRate };
             } catch (error) {
                 console.error("Visitor info detection failed:", error.message, "Defaulting to USD.");
                 return { countryCode: 'US', currencyCode: 'USD', currencySymbol: '$', exchangeRate: 1 };
@@ -559,35 +597,24 @@
             if (product && Array.isArray(product.countryPrices)) {
                 const countryOverride = product.countryPrices.find(p => p.country === visitorInfo.countryCode);
                 if (countryOverride && countryOverride.price) {
-                    const convertedPrice = parseFloat(countryOverride.price) * visitorInfo.exchangeRate;
-                    return {
-                        amount: convertedPrice,
-                        currency: visitorInfo.currencyCode
-                    };
+                    return { amount: parseFloat(countryOverride.price), currency: visitorInfo.currencyCode };
                 }
             }
-            
             const defaultUsdPrice = parseFloat(product.price || 0);
             const convertedPrice = defaultUsdPrice * visitorInfo.exchangeRate;
-            return {
-                amount: convertedPrice,
-                currency: visitorInfo.currencyCode
-            };
+            return { amount: convertedPrice, currency: visitorInfo.currencyCode };
         }
 
         function formatPrice(priceInfo) {
             return new Intl.NumberFormat(undefined, { 
-                style: 'currency', 
-                currency: priceInfo.currency 
+                style: 'currency', currency: priceInfo.currency 
             }).format(priceInfo.amount);
         }
 
-        async function initializeLocalization() {
+        async function initializePage() {
             visitorInfo = await fetchVisitorInfo();
-            displayProductDetails();
-            if (cartItems.length > 0) {
-                renderCart();
-            }
+            loadProductDetails();
+            loadCartFromStorage();
         }
 
         // --- Toast Notification Function ---
@@ -643,20 +670,11 @@
         }
 
         function addToCart(productId, productName, productImage, size, color) {
-            const allProducts = JSON.parse(localStorage.getItem('triumindProducts')) || [];
-            const product = allProducts.find(p => p.id === productId);
-            if (!product) {
-                console.error("Product not found for cart operation:", productId);
+            if (!currentProduct) {
+                console.error("Product data not loaded yet.");
                 return;
             }
-
-            let baseUsdPrice = parseFloat(product.price || 0);
-            if (product.countryPrices && Array.isArray(product.countryPrices)) {
-                const countryOverride = product.countryPrices.find(p => p.country === visitorInfo.countryCode);
-                if (countryOverride && countryOverride.price) {
-                    baseUsdPrice = parseFloat(countryOverride.price);
-                }
-            }
+            const baseUsdPrice = parseFloat(currentProduct.price || 0);
             
             const existingItemIndex = cartItems.findIndex(item =>
                 item.id === productId && item.selectedSize === size && item.selectedColor === color
@@ -666,13 +684,8 @@
                 cartItems[existingItemIndex].quantity += 1;
             } else {
                 cartItems.push({
-                    id: productId,
-                    name: productName,
-                    price: baseUsdPrice,
-                    image: productImage,
-                    quantity: 1,
-                    selectedSize: size,
-                    selectedColor: color
+                    id: productId, name: productName, price: baseUsdPrice,
+                    image: productImage, quantity: 1, selectedSize: size, selectedColor: color
                 });
             }
             saveCartToStorage();
@@ -725,8 +738,7 @@
 
                     const displayAmount = item.price * visitorInfo.exchangeRate;
                     const displayPrice = new Intl.NumberFormat(undefined, {
-                        style: 'currency',
-                        currency: visitorInfo.currencyCode
+                        style: 'currency', currency: visitorInfo.currencyCode
                     }).format(displayAmount);
 
                     itemElement.innerHTML = `
@@ -751,8 +763,7 @@
             const totalPriceUSD = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
             const totalDisplayAmount = totalPriceUSD * visitorInfo.exchangeRate;
             cartTotalPriceEl.textContent = new Intl.NumberFormat(undefined, {
-                style: 'currency',
-                currency: visitorInfo.currencyCode
+                style: 'currency', currency: visitorInfo.currencyCode
             }).format(totalDisplayAmount);
 
             const totalQuantity = cartItems.reduce((total, item) => total + item.quantity, 0);
@@ -818,7 +829,7 @@
         }
 
         // --- Product Detail Page Logic ---
-        function displayProductDetails() {
+        async function loadProductDetails() {
             const urlParams = new URLSearchParams(window.location.search);
             const productId = urlParams.get('productId');
             selectedSize = null;
@@ -829,13 +840,25 @@
                 return;
             }
 
-            const products = JSON.parse(localStorage.getItem('triumindProducts')) || [];
-            currentProduct = products.find(p => p.id === productId);
+            try {
+                const productRef = doc(db, `artifacts/${appId}/public/data/products`, productId);
+                const productSnap = await getDoc(productRef);
 
-            if (!currentProduct) {
-                document.getElementById('product-detail-content').innerHTML = `<p class="text-center text-red-400 text-xl py-10">Product with ID ${productId} not found.</p>`;
-                return;
+                if (productSnap.exists()) {
+                    currentProduct = { id: productSnap.id, ...productSnap.data() };
+                    displayProductDetails();
+                    listenForReviews(productId);
+                } else {
+                    document.getElementById('product-detail-content').innerHTML = `<p class="text-center text-red-400 text-xl py-10">Product with ID ${productId} not found.</p>`;
+                }
+            } catch (error) {
+                console.error("Error fetching product:", error);
+                document.getElementById('product-detail-content').innerHTML = `<p class="text-center text-red-500 text-xl py-10">Error loading product data.</p>`;
             }
+        }
+
+        function displayProductDetails() {
+            if (!currentProduct) return;
 
             productNameEl.textContent = currentProduct.name;
             const priceInfo = getDisplayPriceInfo(currentProduct);
@@ -880,47 +903,21 @@
             if (currentProduct.colors && Array.isArray(currentProduct.colors) && currentProduct.colors.length > 0) {
                 productColorsSectionEl.classList.remove('hidden');
                 productColorsListEl.innerHTML = '';
-                if (typeof currentProduct.colors[0] === 'object' && currentProduct.colors[0] !== null && currentProduct.colors[0].hasOwnProperty('name') && currentProduct.colors[0].hasOwnProperty('hex')) {
-                    currentProduct.colors.forEach(colorObj => {
-                        const colorEl = document.createElement('button');
-                        colorEl.className = 'color-option';
-
-                        const colorSwatch = document.createElement('span');
-                        colorSwatch.className = 'color-swatch';
-                        colorSwatch.style.backgroundColor = colorObj.hex || '#CCC';
-                        colorEl.appendChild(colorSwatch);
-                        colorEl.appendChild(document.createTextNode(colorObj.name));
-
-                        colorEl.addEventListener('click', () => {
-                            selectedColor = colorObj.name;
-                            productColorsListEl.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
-                            colorEl.classList.add('selected');
-                        });
-                        productColorsListEl.appendChild(colorEl);
+                currentProduct.colors.forEach(colorObj => {
+                    const colorEl = document.createElement('button');
+                    colorEl.className = 'color-option';
+                    const colorSwatch = document.createElement('span');
+                    colorSwatch.className = 'color-swatch';
+                    colorSwatch.style.backgroundColor = colorObj.hex || '#CCC';
+                    colorEl.appendChild(colorSwatch);
+                    colorEl.appendChild(document.createTextNode(colorObj.name));
+                    colorEl.addEventListener('click', () => {
+                        selectedColor = colorObj.name;
+                        productColorsListEl.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+                        colorEl.classList.add('selected');
                     });
-                } else {
-                    currentProduct.colors.forEach(colorName => {
-                        if (typeof colorName !== 'string') {
-                            console.warn('Unexpected color format in fallback:', colorName);
-                            return;
-                        }
-                        const colorEl = document.createElement('button');
-                        colorEl.className = 'color-option';
-
-                        const colorSwatch = document.createElement('span');
-                        colorSwatch.className = 'color-swatch';
-                        colorSwatch.style.backgroundColor = colorName.toLowerCase().replace(/\s+/g, '') || '#CCC';
-                        colorEl.appendChild(colorSwatch);
-                        colorEl.appendChild(document.createTextNode(colorName));
-
-                        colorEl.addEventListener('click', () => {
-                            selectedColor = colorName;
-                            productColorsListEl.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
-                            colorEl.classList.add('selected');
-                        });
-                        productColorsListEl.appendChild(colorEl);
-                    });
-                }
+                    productColorsListEl.appendChild(colorEl);
+                });
             } else {
                  productColorsSectionEl.classList.add('hidden');
             }
@@ -953,34 +950,27 @@
             } else if (sizeGuideLink) {
                 sizeGuideLink.classList.add('hidden');
             }
-
-            loadAndRenderReviews();
         }
 
         // --- Review Logic ---
-        function getReviews() {
-            return JSON.parse(localStorage.getItem('triumindProductReviews')) || {};
+        function listenForReviews(productId) {
+            const q = query(reviewsCollection, where("productId", "==", productId));
+            onSnapshot(q, (snapshot) => {
+                const productReviews = snapshot.docs.map(doc => doc.data());
+                renderReviews(productReviews);
+            }, (error) => {
+                console.error("Error fetching reviews: ", error);
+            });
         }
 
-        function saveReviews(reviews) {
-            localStorage.setItem('triumindProductReviews', JSON.stringify(reviews));
-        }
-
-        function loadAndRenderReviews() {
-            if (!currentProduct) return;
-            const allReviews = getReviews();
-            const productReviews = allReviews[currentProduct.id] || [];
-
+        function renderReviews(productReviews) {
             reviewsList.innerHTML = '';
-
             if (productReviews.length > 0) {
                 noReviewsMessage.classList.add('hidden');
                 productReviews.forEach(review => {
                     const reviewEl = document.createElement('div');
                     reviewEl.className = 'review';
-
                     const ratingStars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
-
                     reviewEl.innerHTML = `
                         <div class="flex items-center mb-1">
                             <p class="review-author mr-3">${review.name}</p>
@@ -996,7 +986,7 @@
         }
 
         if (reviewForm) {
-            reviewForm.addEventListener('submit', (e) => {
+            reviewForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 if (!currentProduct) {
                     showToast('Error: Product context lost. Please refresh.');
@@ -1013,9 +1003,7 @@
                 }
 
                 const newReview = {
-                    id: `rev-${Date.now()}`,
-                    name: name,
-                    text: text,
+                    name: name, text: text,
                     rating: parseInt(rating.value),
                     date: new Date().toISOString(),
                     productId: currentProduct.id,
@@ -1023,16 +1011,15 @@
                     isFeatured: false
                 };
 
-                const allReviews = getReviews();
-                if (!allReviews[currentProduct.id]) {
-                    allReviews[currentProduct.id] = [];
+                try {
+                    await addDoc(reviewsCollection, newReview);
+                    showToast('Thank you for your review!');
+                    reviewForm.reset();
+                    // The onSnapshot listener will automatically re-render the reviews list.
+                } catch (error) {
+                    console.error("Error submitting review:", error);
+                    showToast("Failed to submit review. Please try again.");
                 }
-                allReviews[currentProduct.id].unshift(newReview);
-                saveReviews(allReviews);
-
-                showToast('Thank you for your review!');
-                reviewForm.reset();
-                loadAndRenderReviews();
             });
         }
 
@@ -1050,15 +1037,13 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            await initializeLocalization(); 
-            loadCartFromStorage();
+            await initializePage(); 
 
             const currentYearEl = document.getElementById('current-year');
             if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
 
             if (cartIconContainer) cartIconContainer.addEventListener('click', openCart);
             if (cartCloseButton) cartCloseButton.addEventListener('click', closeCart);
-
             if (sizeGuideCloseButton) sizeGuideCloseButton.addEventListener('click', closeSizeGuide);
 
             if (modalOverlay) {
@@ -1072,74 +1057,46 @@
 
             addToCartBtn.addEventListener('click', () => {
                 if (!currentProduct) return;
-
                 const hasSizes = currentProduct.sizes && currentProduct.sizes.length > 0;
                 if (hasSizes && !selectedSize) {
-                    showToast("Please select a size.");
-                    return;
+                    showToast("Please select a size."); return;
                 }
-
                 const hasColors = currentProduct.colors && currentProduct.colors.length > 0;
                 if (hasColors && !selectedColor) {
-                    showToast("Please select a color.");
-                    return;
+                    showToast("Please select a color."); return;
                 }
-
                 const primaryImg = currentProduct.images.find(img => img.isPrimary) || (currentProduct.images ? currentProduct.images[0] : null);
-
-                addToCart(
-                    currentProduct.id,
-                    currentProduct.name,
-                    primaryImg ? primaryImg.dataUrl : '',
-                    selectedSize,
-                    selectedColor
-                );
+                addToCart(currentProduct.id, currentProduct.name, primaryImg ? primaryImg.dataUrl : '', selectedSize, selectedColor);
             });
 
 
             if (cartCheckoutButton) {
-                cartCheckoutButton.addEventListener('click', () => {
+                cartCheckoutButton.addEventListener('click', async () => {
                     if (cartItems.length === 0) {
-                        showToast('Your cart is empty.');
-                        return;
+                        showToast('Your cart is empty.'); return;
                     }
-
                     const email = cartCustomerEmailInputGear ? cartCustomerEmailInputGear.value.trim() : '';
                     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
                     if (!email || !emailRegex.test(email)) {
                         showToast('Please enter a valid email to proceed.');
                         if (cartCustomerEmailInputGear) cartCustomerEmailInputGear.focus();
                         return;
                     }
-
                     try {
-                        let newsletterSignups = JSON.parse(localStorage.getItem('triumindNewsletterSignups')) || [];
-                        if (!newsletterSignups.includes(email)) {
-                            newsletterSignups.push(email);
-                            localStorage.setItem('triumindNewsletterSignups', JSON.stringify(newsletterSignups));
-                            showToast('Email saved for newsletter!');
-                        }
-                    } catch (e) {
-                        console.error("Error saving email to newsletter list:", e);
-                    }
-
+                        await addDoc(newsletterCollection, { email: email, timestamp: new Date() });
+                        showToast('Email saved for newsletter!');
+                    } catch (e) { console.error("Error saving email to newsletter list:", e); }
+                    
                     showToast('Proceeding to checkout (simulation)...');
                     const newOrder = {
-                        id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                        timestamp: new Date().toISOString(),
-                        items: [...cartItems],
+                        timestamp: new Date().toISOString(), items: cartItems,
                         totalAmount: cartItems.reduce((total, item) => total + (item.price * item.quantity), 0),
-                        customerName: "Guest User",
-                        customerEmail: email,
-                        status: "Processing"
+                        customerName: "Guest User", customerEmail: email, status: "Processing"
                     };
                     try {
-                        let orders = JSON.parse(localStorage.getItem('triumindOrders')) || [];
-                        orders.push(newOrder);
-                        localStorage.setItem('triumindOrders', JSON.stringify(orders));
+                        await addDoc(ordersCollection, newOrder);
                     } catch (e) {
-                        console.error("Error saving order to localStorage:", e);
+                        console.error("Error saving order:", e);
                         showToast('Error placing order. Please try again.');
                         return;
                     }
@@ -1149,15 +1106,13 @@
                         renderCart();
                         if(cartCustomerEmailInputGear) cartCustomerEmailInputGear.value = '';
                         closeCart();
-                        showToast('Order placed (simulation)! Thank you.');
+                        showToast('Order placed! Thank you.');
                     }, 1500);
                 });
             }
 
             window.addEventListener('storage', (event) => {
                 if (event.key === 'triumindCart') { loadCartFromStorage(); }
-                if (event.key === 'triumindProducts') { displayProductDetails(); }
-                if (event.key === 'triumindProductReviews') { loadAndRenderReviews(); }
             });
 
             document.addEventListener('keydown', (event) => {
