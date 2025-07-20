@@ -19,7 +19,7 @@
             overflow-x: hidden;
             cursor: none; 
         }
-        body.site-takeover-active, body.modal-open { 
+        body.site-takeover-active, body.modal-open, body.waitlist-active { 
             overflow: hidden;
         }
 
@@ -28,21 +28,19 @@
             left: 0; top: 0; width: 20px; height: 20px;
             border: 2px solid rgba(255, 255, 255, 0.7);
             border-radius: 50%; pointer-events: none;
-            transform: translate(-50%, -50%); z-index: 10001; 
+            transform: translate(-50%, -50%); 
+            z-index: 100001; 
             transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.05s linear, opacity 0.2s ease;
             box-shadow: 0 0 15px 5px rgba(255, 255, 255, 0.5);
             opacity: 1; 
         }
-        body:not(.site-takeover-active):not(.modal-open):has(a:hover, button:hover, input:hover, textarea:hover, .img-hover-effect:hover, .cart-icon-container:hover, #stories-grid img:hover) #custom-cursor {
+        body:not(.site-takeover-active):not(.modal-open):not(.waitlist-active):has(a:hover, button:hover, input:hover, textarea:hover, .img-hover-effect:hover, .cart-icon-container:hover, #stories-grid img:hover) #custom-cursor {
              width: 30px; height: 30px;
              border-color: rgba(255, 255, 255, 1);
              box-shadow: 0 0 20px 8px rgba(255, 255, 255, 0.7);
         }
-        body.site-takeover-active #custom-cursor { 
-            opacity: 0 !important; 
-        }
-        body.modal-open:not(.site-takeover-active) #custom-cursor {
-            opacity: 1 !important;
+        body.site-takeover-active #custom-cursor, body.waitlist-active #custom-cursor, body.modal-open #custom-cursor { 
+            opacity: 1 !important; 
         }
 
 
@@ -223,7 +221,7 @@
             transition: opacity 0.4s ease; backdrop-filter: blur(5px); 
             -webkit-backdrop-filter: blur(5px);
         }
-        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal-overlay.open { opacity: 0.2; pointer-events: auto; }
 
         #cart-modal {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); 
@@ -421,6 +419,166 @@
             #story-viewer-message {
                 font-size: 1.75rem;
             }
+        }
+        
+        /* --- UPDATED WAITLIST STYLES --- */
+        #waitlist-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background-color: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #waitlist-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .waitlist-prompt {
+            text-align: center;
+            padding: 2rem;
+            transform: scale(0.95);
+            opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-out;
+            transition-delay: 0.2s;
+        }
+        #waitlist-overlay.visible .waitlist-prompt {
+            transform: scale(1);
+            opacity: 1;
+        }
+        .waitlist-prompt .brand-logo {
+            font-size: 3rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -0.025em;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+        .waitlist-prompt p {
+            color: #a0a0a0;
+            margin-bottom: 1.5rem;
+            max-width: 400px;
+        }
+        #waitlist-password-input {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            text-align: center;
+            letter-spacing: 0.1em;
+        }
+        #waitlist-password-input:focus {
+            border-color: #8B5CF6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.4);
+        }
+        #waitlist-error-message {
+            color: #ef4444;
+            min-height: 1.25rem; /* Prevents layout shift */
+            margin-top: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        #featured-collection-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            z-index: 10000;
+            width: 90%;
+            max-width: 900px; /* Increased max-width for multiple items */
+            max-height: 90vh;
+            background-color: #16161d;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 0.75rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            flex-direction: column;
+        }
+        #featured-collection-modal.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #featured-collection-close-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 2rem;
+            line-height: 1;
+            cursor: none;
+            transition: color 0.2s ease;
+            z-index: 10;
+        }
+        #featured-collection-close-btn:hover { color: #fff; }
+        
+        #featured-collection-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #2a2a3a;
+            text-align: center;
+        }
+        #featured-collection-header h2 {
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        #featured-collection-grid {
+            padding: 2rem;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+        .featured-product-card {
+            background-color: #2a2a3a;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .featured-product-card img {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 4/5;
+            object-fit: cover;
+        }
+        .featured-product-card-content {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        .featured-product-card-content h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .featured-product-card-content .price {
+            font-size: 1rem;
+            color: #8B5CF6;
+            margin: 0.25rem 0 0.75rem;
+        }
+        .featured-product-card-content .description {
+            font-size: 0.875rem;
+            color: #a0a0a0;
+            flex-grow: 1;
+            margin-bottom: 1rem;
+            /* Clamp to 3 lines */
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;  
+            overflow: hidden;
         }
 
     </style>
@@ -624,12 +782,38 @@
 
 
     <div id="toast-notification" class="toast-notification">Item added to cart!</div>
+    
+    <!-- UPDATED WAITLIST OVERLAY AND MODAL -->
+    <div id="waitlist-overlay">
+        <div class="waitlist-prompt">
+            <div class="brand-logo">TRIUMIND</div>
+            <p>Exclusive access. Enter the password to proceed.</p>
+            <form id="waitlist-form" class="max-w-xs mx-auto">
+                <input type="password" id="waitlist-password-input" class="w-full px-4 py-3 rounded-lg focus:outline-none transition duration-200" placeholder="••••••••">
+                <p id="waitlist-error-message" class="mt-3 text-sm h-5"></p>
+                <button type="submit" class="triumind-animated-button mt-4 bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-semibold uppercase tracking-wide btn-hover-effect w-full">
+                    <span class="original-button-text">Unlock</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="featured-collection-modal">
+        <button id="featured-collection-close-btn">&times;</button>
+        <div id="featured-collection-header">
+            <h2>New Collection Unlocked</h2>
+        </div>
+        <div id="featured-collection-grid">
+            <!-- Featured products will be injected here by JS -->
+        </div>
+    </div>
+
 
     <script type="module">
         // --- Firebase SDK Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, query, where, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase Initialization ---
         let db, auth, app;
@@ -725,6 +909,16 @@
         const storyViewerImage = document.getElementById('story-viewer-image');
         const storyViewerMessage = document.getElementById('story-viewer-message');
         const storyViewerCloseBtn = document.getElementById('story-viewer-close');
+
+        // --- Waitlist Elements ---
+        const waitlistOverlay = document.getElementById('waitlist-overlay');
+        const waitlistForm = document.getElementById('waitlist-form');
+        const waitlistPasswordInput = document.getElementById('waitlist-password-input');
+        const waitlistErrorMessage = document.getElementById('waitlist-error-message');
+        const featuredCollectionModal = document.getElementById('featured-collection-modal');
+        const featuredCollectionCloseBtn = document.getElementById('featured-collection-close-btn');
+        const featuredCollectionGrid = document.getElementById('featured-collection-grid');
+
         
         // --- Core App Initialization ---
         async function initializeAppState() {
@@ -738,13 +932,16 @@
         }
 
         function listenForAllSettings() {
-            const settingsIds = ['countdown', 'stories', 'sectionVisibility', 'featuredProducts', 'siteInfo'];
+            const settingsIds = ['countdown', 'stories', 'sectionVisibility', 'featuredProducts', 'siteInfo', 'waitlist'];
             settingsIds.forEach(id => {
                 onSnapshot(settingsDoc(id), (doc) => {
                     settingsCache[id] = doc.exists() ? doc.data() : {};
                     console.log(`Settings updated for: ${id}`);
                     // Re-render the entire page state when any setting changes
                     renderPageFromState();
+                    if (id === 'waitlist') {
+                        handleWaitlistState();
+                    }
                 }, (error) => console.error(`Error listening for setting '${id}':`, error));
             });
         }
@@ -842,7 +1039,11 @@
         function openSharedModal(modalElement) {
             if (modalElement && modalOverlay) {
                 modalOverlay.classList.add('open');
-                modalElement.classList.add('open'); 
+                if (modalElement.id === 'featured-collection-modal') {
+                    modalElement.classList.add('visible');
+                } else {
+                    modalElement.classList.add('open');
+                }
                 document.body.classList.add('modal-open');
                 if (customCursorEl && !document.body.classList.contains('site-takeover-active')) {
                     customCursorEl.style.opacity = '1';
@@ -852,11 +1053,16 @@
 
         function closeSharedModal(modalElement) {
             if (modalElement && modalOverlay) {
-                modalOverlay.classList.remove('open');
-                modalElement.classList.remove('open');
-                const anyModalOpen = document.querySelector('#cart-modal.open'); 
+                if (modalElement.id === 'featured-collection-modal') {
+                    modalElement.classList.remove('visible');
+                } else {
+                    modalElement.classList.remove('open');
+                }
+                
+                const anyModalOpen = document.querySelector('#cart-modal.open, #featured-collection-modal.visible');
                 if (!anyModalOpen) {
                     document.body.classList.remove('modal-open');
+                    modalOverlay.classList.remove('open');
                 }
                 if (!anyModalOpen && customCursorEl && !document.body.classList.contains('site-takeover-active')) {
                      customCursorEl.style.opacity = '1';
@@ -1323,6 +1529,91 @@
                 }
             });
         }
+        
+        // --- Waitlist Logic ---
+        function handleWaitlistState() {
+            const waitlistSettings = settingsCache.waitlist || {};
+            const storedSessionId = localStorage.getItem('triumindWaitlistSession');
+
+            if (waitlistSettings.enabled && storedSessionId !== waitlistSettings.sessionId) {
+                document.body.classList.add('waitlist-active');
+                waitlistOverlay.classList.add('visible');
+            } else {
+                document.body.classList.remove('waitlist-active');
+                waitlistOverlay.classList.remove('visible');
+            }
+        }
+
+        function showFeaturedProductModal() {
+            const waitlistSettings = settingsCache.waitlist || {};
+            const productIds = waitlistSettings.featuredProductIds || [];
+
+            if (productIds.length === 0) return;
+
+            featuredCollectionGrid.innerHTML = ''; // Clear previous items
+            const productsToFeature = productsCache.filter(p => productIds.includes(p.id));
+
+            if(productsToFeature.length === 0) {
+                console.warn("No valid products found for the featured collection.");
+                return;
+            }
+
+            productsToFeature.forEach(product => {
+                let imageUrl = 'https://placehold.co/400x500/111/fff?text=N/A';
+                if (product.images && product.images.length > 0) {
+                    const primaryImg = product.images.find(img => img.isPrimary) || product.images[0];
+                    if (primaryImg && primaryImg.dataUrl) imageUrl = primaryImg.dataUrl;
+                }
+                const priceInfo = getDisplayPriceInfo(product);
+                const priceHtml = formatPrice(priceInfo);
+
+                const card = document.createElement('div');
+                card.className = 'featured-product-card';
+                card.innerHTML = `
+                    <img src="${imageUrl}" alt="${product.name}">
+                    <div class="featured-product-card-content">
+                        <h3>${product.name}</h3>
+                        <p class="price">${priceHtml}</p>
+                        <p class="description">${product.description || ''}</p>
+                        <a href="Gear.html?productId=${product.id}" class="triumind-animated-button view-product-link btn-hover-effect mt-auto">
+                            <span class="original-button-text">View Details</span>
+                        </a>
+                    </div>
+                `;
+                featuredCollectionGrid.appendChild(card);
+            });
+            
+            initializeAnimatedButtons();
+            openSharedModal(featuredCollectionModal);
+        }
+
+
+        if (waitlistForm) {
+            waitlistForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const enteredPassword = waitlistPasswordInput.value;
+                const correctPassword = settingsCache.waitlist?.password;
+                const currentSessionId = settingsCache.waitlist?.sessionId;
+
+                if (enteredPassword && enteredPassword === correctPassword) {
+                    if (currentSessionId) {
+                        localStorage.setItem('triumindWaitlistSession', currentSessionId);
+                    }
+                    handleWaitlistState();
+                    showFeaturedProductModal();
+                } else {
+                    waitlistErrorMessage.textContent = 'Incorrect password. Please try again.';
+                    waitlistPasswordInput.value = '';
+                }
+            });
+        }
+
+        if (featuredCollectionCloseBtn) {
+            featuredCollectionCloseBtn.addEventListener('click', () => {
+                closeSharedModal(featuredCollectionModal);
+            });
+        }
+
 
         // --- Generalized Animation & UI ---
         function animateButtonInteraction(buttonElement, event) {
@@ -1498,7 +1789,12 @@
             if (cartIconContainer) cartIconContainer.addEventListener('click', openCart);
             if (mobileCartIconContainer) mobileCartIconContainer.addEventListener('click', openCart);
             if (cartCloseButton) cartCloseButton.addEventListener('click', closeCart);
-            if (modalOverlay) modalOverlay.addEventListener('click', (event) => { if (event.target === modalOverlay) closeSharedModal(cartModal); });
+            if (modalOverlay) modalOverlay.addEventListener('click', (event) => { 
+                if (event.target === modalOverlay) {
+                    closeSharedModal(cartModal);
+                    closeSharedModal(featuredCollectionModal);
+                }
+            });
             initializeAnimatedButtons(); 
 
             window.addEventListener('storage', (event) => {
@@ -1509,6 +1805,7 @@
                 if (event.key === 'Escape' && document.body.classList.contains('modal-open')) {
                     if (storyViewerOverlay && storyViewerOverlay.classList.contains('active')) closeStoryViewer();
                     if (cartModal && cartModal.classList.contains('open')) closeCart();
+                    if (featuredCollectionModal && featuredCollectionModal.classList.contains('visible')) closeSharedModal(featuredCollectionModal);
                 }
             });
 
